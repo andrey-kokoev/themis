@@ -1,0 +1,135 @@
+[
+  {
+    "order": 7,
+    "path": "/policy/spec/laws/007-runtime-realization-semantics-lawbook-v0.md",
+    "title": "Runtime Realization Semantics Lawbook v0",
+    "id": "r5k1nv",
+    "kind": "lawbook"
+  },
+  {
+    "order": 8,
+    "path": "/policy/spec/laws/008-runtime-realization-plan-lawbook-v0.md",
+    "title": "Runtime Realization Plan Lawbook v0",
+    "id": "t6v2pf",
+    "kind": "lawbook"
+  },
+  {
+    "order": 9,
+    "path": "/policy/spec/tests/009-runtime-planning-executable-spec-v0.md",
+    "title": "Runtime Planning Executable Spec v0",
+    "id": "w8k4sm",
+    "kind": "exec"
+  },
+  {
+    "order": 10,
+    "path": "/policy/spec/laws/010-runtime-reconciliation-lawbook-v0.md",
+    "title": "Runtime Reconciliation Lawbook v0",
+    "id": "p3x7nw",
+    "kind": "lawbook"
+  },
+  {
+    "order": 11,
+    "path": "/policy/spec/tests/011-runtime-reconciliation-executable-spec-v0.md",
+    "title": "Runtime Reconciliation Executable Spec v0",
+    "id": "d9u4ks",
+    "kind": "exec"
+  },
+  {
+    "order": 12,
+    "path": "/policy/spec/laws/012-runtime-persistence-interpretation-lawbook-v0.md",
+    "title": "Runtime Persistence Interpretation Lawbook v0",
+    "id": "b4r9tz",
+    "kind": "lawbook"
+  },
+  {
+    "order": 13,
+    "path": "/policy/spec/tests/013-runtime-persistence-interpretation-executable-spec-v0.md",
+    "title": "Runtime Persistence Interpretation Executable Spec v0",
+    "id": "k9u5rb",
+    "kind": "exec"
+  },
+  {
+    "order": 14,
+    "path": "/policy/spec/laws/014-runtime-to-context-integration-lawbook-v0.md",
+    "title": "Runtime-to-Context Integration Lawbook v0",
+    "id": "m7c2ql",
+    "kind": "lawbook"
+  },
+  {
+    "order": 15,
+    "path": "/policy/spec/tests/015-runtime-to-context-integration-executable-spec-v0.md",
+    "title": "Runtime-to-Context Integration Executable Spec v0",
+    "id": "x6m1vp",
+    "kind": "exec"
+  },
+  {
+    "order": 16,
+    "path": "/policy/spec/laws/016-substrate-adapter-semantics-lawbook-v0.md",
+    "title": "Substrate Adapter Semantics Lawbook v0",
+    "id": "s8w3jf",
+    "kind": "lawbook"
+  },
+  {
+    "order": 17,
+    "path": "/policy/spec/tests/017-substrate-adapter-executable-spec-v0.md",
+    "title": "Substrate Adapter Executable Spec v0",
+    "id": "u9r4mh",
+    "kind": "exec"
+  },
+  {
+    "order": 18,
+    "path": "/policy/spec/laws/018-terminal-session-substrate-lawbook-v0.md",
+    "title": "Terminal-Session Substrate Lawbook v0",
+    "id": "y2n6ht",
+    "kind": "lawbook"
+  },
+  {
+    "order": 19,
+    "path": "/policy/spec/tests/019-terminal-session-executable-spec-v0.md",
+    "title": "Terminal-Session Executable Spec v0",
+    "id": "v4q8ly",
+    "kind": "exec"
+  },
+  {
+    "order": 20,
+    "path": "/policy/spec/laws/020-tmux-profile-lawbook-v0.md",
+    "title": "Tmux Profile Lawbook v0",
+    "id": "n8t5qy",
+    "kind": "lawbook"
+  },
+  {
+    "order": 21,
+    "path": "/policy/spec/tests/021-tmux-profile-executable-spec-v0.md",
+    "title": "Tmux Profile Executable Spec v0",
+    "id": "q1w6mv",
+    "kind": "exec"
+  },
+  {
+    "order": 22,
+    "path": "/policy/spec/laws/022-windows-terminal-wsl-profile-lawbook-v0.md",
+    "title": "Windows Terminal + WSL Profile Lawbook v0",
+    "id": "g4u9xe",
+    "kind": "lawbook"
+  },
+  {
+    "order": 23,
+    "path": "/policy/spec/tests/023-windows-terminal-wsl-executable-spec-v0.md",
+    "title": "Windows Terminal + WSL Executable Spec v0",
+    "id": "w3p8nk",
+    "kind": "exec"
+  },
+  {
+    "order": 24,
+    "path": "/policy/spec/laws/024-windows-terminal-wsl-operational-policy-lawbook-v0.md",
+    "title": "Windows Terminal + WSL Operational Policy Lawbook v0",
+    "id": "h7m2qd",
+    "kind": "lawbook"
+  },
+  {
+    "order": 25,
+    "path": "/policy/spec/tests/025-wt-wsl-operational-policy-executable-spec-v0.md",
+    "title": "WT+WSL Operational Policy Executable Spec v0",
+    "id": "c6v1mr",
+    "kind": "exec"
+  }
+]

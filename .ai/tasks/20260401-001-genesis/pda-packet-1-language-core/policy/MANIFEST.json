@@ -1,0 +1,44 @@
+[
+  {
+    "order": 1,
+    "path": "/policy/spec/laws/001-minimal-concrete-grammar-lawbook-v0.md",
+    "title": "Minimal Concrete Grammar Lawbook v0",
+    "id": "n4h6sy",
+    "kind": "lawbook"
+  },
+  {
+    "order": 2,
+    "path": "/policy/spec/laws/002-minimal-parser-contract-v0.md",
+    "title": "Minimal Parser Contract v0",
+    "id": "q8f2mw",
+    "kind": "lawbook"
+  },
+  {
+    "order": 3,
+    "path": "/policy/spec/laws/003-minimal-ebnf-peg-style-grammar-v0.md",
+    "title": "Minimal EBNF / PEG-Style Grammar v0",
+    "id": "h3v9kc",
+    "kind": "lawbook"
+  },
+  {
+    "order": 4,
+    "path": "/policy/spec/tests/004-smallest-executable-parser-sketch-v0.md",
+    "title": "Smallest Executable Parser Sketch v0",
+    "id": "c1p8ru",
+    "kind": "exec"
+  },
+  {
+    "order": 5,
+    "path": "/policy/spec/notes/005-tiny-parser-law-coverage-table-and-parser-semantic-completeness-review-v0.md",
+    "title": "Tiny Parser Law Coverage Table and Parser Semantic Completeness Review v0",
+    "id": "l2d7qx",
+    "kind": "note"
+  },
+  {
+    "order": 6,
+    "path": "/policy/spec/notes/006-close-the-four-remaining-parser-must-close-laws-v0.md",
+    "title": "Close the Four Remaining Parser Must-Close Laws v0",
+    "id": "f7m3qd",
+    "kind": "note"
+  }
+]

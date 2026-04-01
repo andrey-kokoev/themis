@@ -1,0 +1,86 @@
+[
+  {
+    "order": 26,
+    "path": "/policy/spec/laws/026-cross-profile-continuity-migration-lawbook-v0.md",
+    "title": "Cross-Profile Continuity / Migration Lawbook v0",
+    "id": "p6k3rs",
+    "kind": "lawbook"
+  },
+  {
+    "order": 27,
+    "path": "/policy/spec/tests/027-cross-profile-continuity-migration-executable-spec-v0.md",
+    "title": "Cross-Profile Continuity / Migration Executable Spec v0",
+    "id": "z7h4cu",
+    "kind": "exec"
+  },
+  {
+    "order": 28,
+    "path": "/policy/spec/laws/028-canonical-rendering-formatter-lawbook-v0.md",
+    "title": "Canonical Rendering / Formatter Lawbook v0",
+    "id": "r2m8vf",
+    "kind": "lawbook"
+  },
+  {
+    "order": 29,
+    "path": "/policy/spec/tests/029-canonical-rendering-formatter-executable-spec-v0.md",
+    "title": "Canonical Rendering / Formatter Executable Spec v0",
+    "id": "j9q4lx",
+    "kind": "exec"
+  },
+  {
+    "order": 30,
+    "path": "/policy/spec/laws/030-multi-workspace-module-composition-lawbook-v0.md",
+    "title": "Multi-Workspace / Module Composition Lawbook v0",
+    "id": "m1v7ka",
+    "kind": "lawbook"
+  },
+  {
+    "order": 31,
+    "path": "/policy/spec/tests/031-multi-workspace-module-composition-executable-spec-v0.md",
+    "title": "Multi-Workspace / Module Composition Executable Spec v0",
+    "id": "d3p9wx",
+    "kind": "exec"
+  },
+  {
+    "order": 32,
+    "path": "/policy/spec/laws/032-policy-packaging-deployment-envelope-lawbook-v0.md",
+    "title": "Policy Packaging / Deployment Envelope Lawbook v0",
+    "id": "k4t8pv",
+    "kind": "lawbook"
+  },
+  {
+    "order": 33,
+    "path": "/policy/spec/tests/033-policy-packaging-deployment-envelope-executable-spec-v0.md",
+    "title": "Policy Packaging / Deployment Envelope Executable Spec v0",
+    "id": "t5n1qb",
+    "kind": "exec"
+  },
+  {
+    "order": 34,
+    "path": "/policy/spec/laws/034-operator-state-durable-runtime-journal-lawbook-v0.md",
+    "title": "Operator State / Durable Runtime Journal Lawbook v0",
+    "id": "q5h8zd",
+    "kind": "lawbook"
+  },
+  {
+    "order": 35,
+    "path": "/policy/spec/tests/035-operator-state-durable-runtime-journal-executable-spec-v0.md",
+    "title": "Operator State / Durable Runtime Journal Executable Spec v0",
+    "id": "y7c2lm",
+    "kind": "exec"
+  },
+  {
+    "order": 36,
+    "path": "/policy/spec/laws/036-explicit-namespacing-shared-identity-composition-lawbook-v0.md",
+    "title": "Explicit Namespacing / Shared-Identity Composition Lawbook v0",
+    "id": "b8f3nx",
+    "kind": "lawbook"
+  },
+  {
+    "order": 37,
+    "path": "/policy/spec/tests/037-explicit-namespacing-shared-identity-composition-executable-spec-v0.md",
+    "title": "Explicit Namespacing / Shared-Identity Composition Executable Spec v0",
+    "id": "u4k9sb",
+    "kind": "exec"
+  }
+]
