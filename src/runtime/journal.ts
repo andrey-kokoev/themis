@@ -1,15 +1,24 @@
 /**
- * Durable Runtime Journal
+ * Durable Runtime Journal (Extended for Operator Actions)
  * 
  * Implements journal laws J1-J5 from lawbook 034.
+ * Implements operator intervention laws O4-O5 from lawbook 040.
  * Append-only recording with deterministic replay.
  */
 
 import type { Workspace } from "../types/ast.js";
-import type { Journal, JournalRecord, JournalInput, ReplayResult } from "../types/journal.js";
+import type { 
+  Journal, 
+  JournalRecord, 
+  JournalInput, 
+  ReplayResult,
+  OperatorActionRecord,
+} from "../types/journal.js";
 import type { IntegrationVerdict } from "../types/runtime-integration.js";
+import type { OperatorAction, OperatorActionVerdict } from "../types/operator-intervention.js";
 import { render } from "../renderer/canonical-renderer.js";
 import { integrate } from "./integration.js";
+import { canReplayAction } from "./operator-intervention.js";
 
 /**
  * Simple hash function for workspace canonical rendering.
@@ -46,7 +55,7 @@ export function createJournal(): Journal {
 }
 
 /**
- * Append a record to the journal.
+ * Append an integration record to the journal.
  * 
  * Law J1: Append-only
  * Law J2: Monotone sequence and logical time
@@ -62,7 +71,7 @@ export function append(
   const seq = journal.nextSeq;
   
   // J2.2: Logical time (monotone with seq)
-  const at = seq; // Using seq as logical time
+  const at = seq;
   
   // J3: Workspace hash
   const workspaceHash = hashWorkspace(workspace);
@@ -84,53 +93,114 @@ export function append(
 }
 
 /**
- * Replay journal and verify all verdicts match.
+ * Append an operator action record to the journal.
  * 
- * Law J4: Replay correctness
+ * Law O5: Operator actions are journalable as first-class records.
+ * Law J1-J2: Same append-only and sequencing rules apply.
+ */
+export function appendOperatorAction(
+  journal: Journal,
+  action: OperatorAction,
+  verdict: OperatorActionVerdict
+): Journal {
+  // J2.1: Strictly increasing sequence
+  const seq = journal.nextSeq;
+  
+  // J2.2: Logical time
+  const at = seq;
+  
+  const record: OperatorActionRecord = {
+    tag: "OperatorAction",
+    seq,
+    at,
+    action,
+    verdict,
+  };
+  
+  // J1: Append-only
+  return {
+    records: [...journal.records, record],
+    nextSeq: seq + 1,
+  };
+}
+
+/**
+ * Replay journal and verify all records.
+ * 
+ * Law J4: Replay correctness for integration records.
+ * Law O4: Replay semantics for operator actions.
  */
 export function replay(
   journal: Journal,
-  workspaceResolver: (hash: string) => Workspace | undefined
+  workspaceResolver: (hash: string) => Workspace | undefined,
+  stateResolver: (workspaceHash: string) => {
+    workspaces: string[];
+    roles: string[];
+    latestConflictsByWorkspace: Record<string, string[]>;
+    knownProfiles: string[];
+  } | undefined
 ): ReplayResult {
   const mismatches: Array<{
     seq: number;
-    expected: IntegrationVerdict;
-    actual: IntegrationVerdict;
+    expected: unknown;
+    actual: unknown;
   }> = [];
   
   for (const record of journal.records) {
-    // Resolve workspace by hash
-    const workspace = workspaceResolver(record.workspaceHash);
-    if (!workspace) {
-      return {
-        ok: false,
-        firstFailureSeq: record.seq,
-        mismatches: [{
+    if (record.tag === "IntegrationEvaluated") {
+      // Replay integration record
+      const workspace = workspaceResolver(record.workspaceHash);
+      if (!workspace) {
+        return {
+          ok: false,
+          firstFailureSeq: record.seq,
+          mismatches: [{
+            seq: record.seq,
+            expected: record.verdict,
+            actual: {
+              admissible: false,
+              conflicts: [{
+                type: "WorkspaceNotFound",
+                message: `Workspace with hash "${record.workspaceHash}" not found`,
+              }],
+              satisfied: [],
+              unsatisfied: [],
+            },
+          }],
+        };
+      }
+      
+      // Recompute verdict
+      const recomputed = integrate({ workspace, facts: record.facts });
+      
+      // J4: Check equality with stored verdict
+      if (!verdictsEqual(recomputed, record.verdict)) {
+        mismatches.push({
           seq: record.seq,
           expected: record.verdict,
-          actual: {
-            admissible: false,
-            conflicts: [{
-              type: "WorkspaceNotFound",
-              message: `Workspace with hash "${record.workspaceHash}" not found`,
-            }],
-            satisfied: [],
-            unsatisfied: [],
-          },
-        }],
-      };
-    }
-    
-    // Recompute verdict
-    const recomputed = integrate({ workspace, facts: record.facts });
-    
-    // J4: Check equality with stored verdict
-    if (!verdictsEqual(recomputed, record.verdict)) {
-      mismatches.push({
-        seq: record.seq,
-        expected: record.verdict,
-        actual: recomputed,
-      });
+          actual: recomputed,
+        });
+      }
+    } else if (record.tag === "OperatorAction") {
+      // Law O4: Replay operator action
+      const state = stateResolver?.("");
+      if (!state) {
+        mismatches.push({
+          seq: record.seq,
+          expected: record.verdict,
+          actual: { tag: "Inadmissible", reason: "State not available for replay" },
+        });
+        continue;
+      }
+      
+      const replayCheck = canReplayAction(state, record.action);
+      if (!replayCheck.canReplay) {
+        mismatches.push({
+          seq: record.seq,
+          expected: record.verdict,
+          actual: { tag: "Inadmissible", reason: replayCheck.reason },
+        });
+      }
     }
   }
   
@@ -191,4 +261,14 @@ export function lastRecord(journal: Journal): JournalRecord | undefined {
  */
 export function getRecord(journal: Journal, seq: number): JournalRecord | undefined {
   return journal.records.find(r => r.seq === seq);
+}
+
+/**
+ * Get all operator action records from journal.
+ * Law O5: Operator actions are visible in journal.
+ */
+export function getOperatorActions(journal: Journal): OperatorActionRecord[] {
+  return journal.records.filter(
+    (r): r is OperatorActionRecord => r.tag === "OperatorAction"
+  );
 }
