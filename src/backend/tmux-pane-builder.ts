@@ -72,6 +72,11 @@ export function buildTmuxPaneCommands(module: TabbedModule): Command[] {
     commands.push(...buildTabCommands(sessionName, tabs[i]!, pipeMap));
   }
 
+  // Startup sequence (Law S4.1: after panes, before attach)
+  if (module.workspace.startup) {
+    commands.push(...buildStartupCommands(sessionName, module.workspace.startup, module.workspace.tabs));
+  }
+
   // Final attachment
   commands.push({
     tag: "tmux",
@@ -182,6 +187,52 @@ function buildTabPanes(
         tag: "tmux",
         args: ["send-keys", "-t", target, cmd, "C-m"],
         description: `Run in pane ${i}`,
+      });
+    }
+  }
+
+  return commands;
+}
+
+/**
+ * Build startup commands from startup block.
+ */
+function buildStartupCommands(
+  sessionName: string,
+  startup: any,
+  tabs: any[]
+): Command[] {
+  const commands: Command[] = [];
+  
+  // Build pane name -> window index map
+  const paneWindowMap = new Map<string, { windowName: string; paneIndex: number }>();
+  for (const tab of tabs) {
+    let paneIndex = 0;
+    for (const pane of tab.panes) {
+      if (pane.name) {
+        paneWindowMap.set(pane.name, { windowName: tab.name, paneIndex });
+      }
+      paneIndex++;
+    }
+  }
+
+  for (const stmt of startup.statements) {
+    if (stmt.tag === "SendStmt") {
+      const location = paneWindowMap.get(stmt.target);
+      if (!location) {
+        throw new Error(`Startup send target '${stmt.target}' not found in any pane`);
+      }
+      const target = `${sessionName}:${location.windowName}.${location.paneIndex}`;
+      commands.push({
+        tag: "tmux",
+        args: ["send-keys", "-t", target, stmt.message, "C-m"],
+        description: `Send message to ${stmt.target}`,
+      });
+    } else if (stmt.tag === "WaitStmt") {
+      commands.push({
+        tag: "shell",
+        command: `sleep ${stmt.seconds}`,
+        description: `Wait ${stmt.seconds}s`,
       });
     }
   }

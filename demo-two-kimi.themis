@@ -7,5 +7,10 @@ module "two_kimi" {
       pane left { command "kimi" }
       pane right { command "kimi" }
     }
+
+    startup {
+      send "Hello, let's collaborate." to left
+      wait "1"
+    }
   }
 }

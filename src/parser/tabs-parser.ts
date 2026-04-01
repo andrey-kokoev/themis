@@ -18,7 +18,7 @@ interface Token {
 }
 
 const KEYWORDS = new Set([
-  "module", "import", "workspace", "tab", "in", "layout", "horizontal", "vertical", "pane", "command", "pipe", "from", "to"
+  "module", "import", "workspace", "tab", "in", "layout", "horizontal", "vertical", "pane", "command", "pipe", "from", "to", "startup", "send", "wait"
 ]);
 
 // Lexer
@@ -176,12 +176,15 @@ class Parser {
 
     const tabs: TabBlock[] = [];
     const pipes: PipeDecl[] = [];
+    let startup: StartupBlock | undefined;
     
     while (!this.match("RBRACE") && !this.match("EOF")) {
       if (this.match("KEYWORD", "tab")) {
         tabs.push(this.parseTab());
       } else if (this.match("KEYWORD", "pipe")) {
         pipes.push(this.parsePipe());
+      } else if (this.match("KEYWORD", "startup")) {
+        startup = this.parseStartup();
       } else {
         throw new Error(`Unexpected token ${this.peek().value} at line ${this.peek().line}`);
       }
@@ -189,7 +192,48 @@ class Parser {
 
     this.expect("RBRACE");
 
-    return { tag: "TabWorkspace", name, tabs, pipes };
+    return { tag: "TabWorkspace", name, tabs, pipes, startup };
+  }
+
+  private parseStartup(): StartupBlock {
+    this.expect("KEYWORD", "startup");
+    this.expect("LBRACE");
+
+    const statements: (SendStmt | WaitStmt)[] = [];
+    while (!this.match("RBRACE") && !this.match("EOF")) {
+      if (this.match("KEYWORD", "send")) {
+        statements.push(this.parseSendStmt());
+      } else if (this.match("KEYWORD", "wait")) {
+        statements.push(this.parseWaitStmt());
+      } else {
+        throw new Error(`Unexpected token ${this.peek().value} in startup block at line ${this.peek().line}`);
+      }
+    }
+
+    this.expect("RBRACE");
+    return { tag: "StartupBlock", statements };
+  }
+
+  private parseSendStmt(): SendStmt {
+    this.expect("KEYWORD", "send");
+    const message = this.expect("STRING").value;
+    this.expect("KEYWORD", "to");
+    const target = this.expect("STRING").value;
+    return { tag: "SendStmt", message, target };
+  }
+
+  private parseWaitStmt(): WaitStmt {
+    this.expect("KEYWORD", "wait");
+    const secondsStr = this.expect("STRING").value;
+    const seconds = parseFloat(secondsStr);
+    if (isNaN(seconds)) {
+      throw new Error(`Invalid wait duration "${secondsStr}" at line ${this.peek().line}`);
+    }
+    // Consume optional 's' suffix if present as separate token
+    if (this.match("KEYWORD", "s")) {
+      this.advance();
+    }
+    return { tag: "WaitStmt", seconds };
   }
 
   private parsePipe(): PipeDecl {

@@ -47,7 +47,32 @@ export type PipeDecl = {
 };
 
 /**
- * Operational workspace containing tabs and pipes.
+ * Send statement in startup block.
+ */
+export type SendStmt = {
+  tag: "SendStmt";
+  message: string;
+  target: string;
+};
+
+/**
+ * Wait statement in startup block.
+ */
+export type WaitStmt = {
+  tag: "WaitStmt";
+  seconds: number;
+};
+
+/**
+ * Startup block for workspace initialization.
+ */
+export type StartupBlock = {
+  tag: "StartupBlock";
+  statements: (SendStmt | WaitStmt)[];
+};
+
+/**
+ * Operational workspace containing tabs, pipes, and startup.
  * Alternative to Workspace for CLI/operational use.
  */
 export type TabWorkspace = {
@@ -55,6 +80,7 @@ export type TabWorkspace = {
   name: string;
   tabs: TabBlock[];
   pipes: PipeDecl[];
+  startup?: StartupBlock;
 };
 
 /**
