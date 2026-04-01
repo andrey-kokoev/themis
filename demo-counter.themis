@@ -1,0 +1,10 @@
+module "counter" {
+  workspace "main" {
+    pipe { between: [alice, bob] }
+
+    tab "game" in local {
+      pane alice { command "node counter.js alice" }
+      pane bob { command "node counter.js bob" }
+    }
+  }
+}

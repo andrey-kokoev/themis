@@ -1,0 +1,12 @@
+module "counter_sum" {
+  workspace "main" {
+    pipe { between: [alice, summer] }
+    pipe { between: [bob, summer] }
+
+    tab "counters" in local layout vertical {
+      pane alice { command "node counter.js alice" }
+      pane bob { command "node counter.js bob" }
+      pane summer { command "FIFO_DIR=/tmp/themis/counter_sum node summer.js" }
+    }
+  }
+}

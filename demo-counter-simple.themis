@@ -1,0 +1,8 @@
+module "counter_simple" {
+  workspace "main" {
+    tab "counters" in local {
+      pane horizontal { command "node counter.js alice" }
+      pane horizontal { command "node counter.js bob" }
+    }
+  }
+}
