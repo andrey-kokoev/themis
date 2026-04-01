@@ -15,6 +15,8 @@ export type LayoutKind = "horizontal" | "vertical";
  */
 export type PaneBlock = {
   tag: "PaneBlock";
+  /** Optional name for referencing from pipes */
+  name?: string;
   /** Optional explicit layout (defaults to tab layout) */
   layout?: LayoutKind;
   /** Optional command to run in pane */
@@ -35,13 +37,23 @@ export type TabBlock = {
 };
 
 /**
- * Operational workspace containing tabs.
+ * Pipe declaration connecting two panes directly.
+ */
+export type PipeDecl = {
+  tag: "PipeDecl";
+  paneA: string;
+  paneB: string;
+};
+
+/**
+ * Operational workspace containing tabs and pipes.
  * Alternative to Workspace for CLI/operational use.
  */
 export type TabWorkspace = {
   tag: "TabWorkspace";
   name: string;
   tabs: TabBlock[];
+  pipes: PipeDecl[];
 };
 
 /**

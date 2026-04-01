@@ -24,6 +24,7 @@ function createTestModule(): TabbedModule {
     imports: [],
     workspace: {
       tag: "TabWorkspace",
+      pipes: [],
       name: "main",
       tabs: [
         {
@@ -159,6 +160,7 @@ describe("Session State Persistence (P1-P5)", () => {
         imports: [],
         workspace: {
           tag: "TabWorkspace",
+      pipes: [],
           name: "main",
           tabs: [
             {

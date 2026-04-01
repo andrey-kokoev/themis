@@ -8,7 +8,7 @@
 import type { TabbedModule, TabWorkspace, TabBlock, PaneBlock, LayoutKind } from "../types/tabs.js";
 
 // Token types
-type TokenType = "KEYWORD" | "STRING" | "LBRACE" | "RBRACE" | "EOF";
+type TokenType = "KEYWORD" | "STRING" | "LBRACE" | "RBRACE" | "LBRACKET" | "RBRACKET" | "COLON" | "COMMA" | "EOF";
 
 interface Token {
   type: TokenType;
@@ -18,7 +18,7 @@ interface Token {
 }
 
 const KEYWORDS = new Set([
-  "module", "workspace", "tab", "in", "layout", "horizontal", "vertical", "pane", "command"
+  "module", "import", "workspace", "tab", "in", "layout", "horizontal", "vertical", "pane", "command", "pipe", "between"
 ]);
 
 // Lexer
@@ -69,9 +69,13 @@ function* lexer(input: string): Generator<Token> {
       continue;
     }
 
-    // Braces
+    // Braces and brackets
     if (ch === "{") { advance(); yield { type: "LBRACE", value: "{", line, column: column - 1 }; continue; }
     if (ch === "}") { advance(); yield { type: "RBRACE", value: "}", line, column: column - 1 }; continue; }
+    if (ch === "[") { advance(); yield { type: "LBRACKET", value: "[", line, column: column - 1 }; continue; }
+    if (ch === "]") { advance(); yield { type: "RBRACKET", value: "]", line, column: column - 1 }; continue; }
+    if (ch === ":") { advance(); yield { type: "COLON", value: ":", line, column: column - 1 }; continue; }
+    if (ch === ",") { advance(); yield { type: "COMMA", value: ",", line, column: column - 1 }; continue; }
 
     // Keywords and identifiers
     if (/[a-zA-Z_]/.test(ch)) {
@@ -171,13 +175,38 @@ class Parser {
     this.expect("LBRACE");
 
     const tabs: TabBlock[] = [];
+    const pipes: PipeDecl[] = [];
+    
     while (!this.match("RBRACE") && !this.match("EOF")) {
-      tabs.push(this.parseTab());
+      if (this.match("KEYWORD", "tab")) {
+        tabs.push(this.parseTab());
+      } else if (this.match("KEYWORD", "pipe")) {
+        pipes.push(this.parsePipe());
+      } else {
+        throw new Error(`Unexpected token ${this.peek().value} at line ${this.peek().line}`);
+      }
     }
 
     this.expect("RBRACE");
 
-    return { tag: "TabWorkspace", name, tabs };
+    return { tag: "TabWorkspace", name, tabs, pipes };
+  }
+
+  private parsePipe(): PipeDecl {
+    this.expect("KEYWORD", "pipe");
+    this.expect("LBRACE");
+    this.expect("KEYWORD", "between");
+    this.expect("COLON");
+    this.expect("LBRACKET");
+    
+    const paneA = this.expect("STRING").value;
+    this.expect("COMMA");
+    const paneB = this.expect("STRING").value;
+    
+    this.expect("RBRACKET");
+    this.expect("RBRACE");
+
+    return { tag: "PipeDecl", paneA, paneB };
   }
 
   private parseTab(): TabBlock {
@@ -218,15 +247,27 @@ class Parser {
   private parsePane(): PaneBlock {
     this.expect("KEYWORD", "pane");
 
-    // Optional layout modifier
+    // Optional name
+    let name: string | undefined;
+    if (this.match("STRING")) {
+      name = this.advance().value;
+    }
+
+    // Optional layout modifier (if name wasn't specified, check for layout)
     let layout: LayoutKind | undefined;
-    if (this.match("STRING") || this.match("KEYWORD")) {
+    if (!name && (this.match("STRING") || this.match("KEYWORD"))) {
       const layoutTok = this.advance().value;
       if (layoutTok === "horizontal" || layoutTok === "vertical") {
         layout = layoutTok as LayoutKind;
       } else {
-        // Not a valid layout keyword - error
         throw new Error(`Expected layout (horizontal/vertical) or '{' but got "${layoutTok}" at line ${this.peek().line}`);
+      }
+    } else if (name && this.match("KEYWORD")) {
+      // Check if next keyword is a layout
+      const layoutTok = this.peek().value;
+      if (layoutTok === "horizontal" || layoutTok === "vertical") {
+        this.advance();
+        layout = layoutTok as LayoutKind;
       }
     }
 
@@ -240,7 +281,7 @@ class Parser {
 
     this.expect("RBRACE");
 
-    return { tag: "PaneBlock", layout, command };
+    return { tag: "PaneBlock", name, layout, command };
   }
 }
 

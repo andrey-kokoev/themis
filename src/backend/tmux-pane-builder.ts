@@ -1,33 +1,65 @@
 /**
- * Tmux Pane Command Builder (Task 029B)
+ * Tmux Pane Command Builder (Task 029B, 030)
  * 
- * Implements lawbook 064B.
- * Converts TabbedModule with panes into tmux split commands.
+ * Implements lawbook 064B (pane layouts) and 068 (direct pane pipes).
  */
 
-import type { TabbedModule, TabBlock, PaneBlock, LayoutKind } from "../types/tabs.js";
+import type { TabbedModule, TabBlock, PaneBlock, LayoutKind, PipeDecl } from "../types/tabs.js";
 
-/**
- * Tmux shell command.
- */
 export type TmuxShellCommand = {
   tag: "tmux";
   args: string[];
   description: string;
 };
 
+export type ShellCommand = {
+  tag: "shell";
+  command: string;
+  description: string;
+};
+
+export type Command = TmuxShellCommand | ShellCommand;
+
 /**
- * Build tmux commands from tabbed module.
- * 
- * Law T1-T2: Creates session, windows, splits, and sends commands.
+ * Build commands from tabbed module.
+ * Returns shell commands for setup + tmux commands.
  */
-export function buildTmuxPaneCommands(module: TabbedModule): TmuxShellCommand[] {
-  const commands: TmuxShellCommand[] = [];
+export function buildTmuxPaneCommands(module: TabbedModule): Command[] {
+  const commands: Command[] = [];
   const sessionName = module.moduleId;
   const tabs = module.workspace.tabs;
+  const pipes = module.workspace.pipes;
 
   if (tabs.length === 0) {
     throw new Error("Module has no tabs");
+  }
+
+  // Build pipe map: pane name -> { readsFrom, writesTo }
+  const pipeMap = buildPipeMap(pipes || []);
+
+  // Create FIFOs for pipes (Law P2.1)
+  if (pipes.length > 0) {
+    const fifoDir = `/tmp/themis/${sessionName}`;
+    commands.push({
+      tag: "shell",
+      command: `mkdir -p ${fifoDir}`,
+      description: `Create FIFO directory`,
+    });
+    
+    for (const pipe of pipes) {
+      const fifoAtoB = `${fifoDir}/${pipe.paneA}_to_${pipe.paneB}`;
+      const fifoBtoA = `${fifoDir}/${pipe.paneB}_to_${pipe.paneA}`;
+      commands.push({
+        tag: "shell",
+        command: `mkfifo ${fifoAtoB} 2>/dev/null || true`,
+        description: `Create FIFO ${pipe.paneA}_to_${pipe.paneB}`,
+      });
+      commands.push({
+        tag: "shell",
+        command: `mkfifo ${fifoBtoA} 2>/dev/null || true`,
+        description: `Create FIFO ${pipe.paneB}_to_${pipe.paneA}`,
+      });
+    }
   }
 
   // Create session with first tab
@@ -35,53 +67,67 @@ export function buildTmuxPaneCommands(module: TabbedModule): TmuxShellCommand[] 
   commands.push({
     tag: "tmux",
     args: ["new-session", "-d", "-s", sessionName, "-n", firstTab.name],
-    description: `Create session '${sessionName}' with window '${firstTab.name}'`,
+    description: `Create session '${sessionName}'`,
   });
 
-  // Build first tab's panes (skipping window creation since done above)
-  commands.push(...buildTabPanes(sessionName, firstTab, true));
+  // Build first tab's panes
+  commands.push(...buildTabPanes(sessionName, firstTab, pipeMap, true));
 
   // Build remaining tabs
   for (let i = 1; i < tabs.length; i++) {
-    commands.push(...buildTabCommands(sessionName, tabs[i]!));
+    commands.push(...buildTabCommands(sessionName, tabs[i]!, pipeMap));
   }
 
   // Final attachment
   commands.push({
     tag: "tmux",
     args: ["attach", "-t", sessionName],
-    description: `Attach to session '${sessionName}'`,
+    description: `Attach to session`,
   });
 
   return commands;
 }
 
 /**
- * Build commands for a single tab (creates window first).
+ * Build map of pane connections from pipe declarations.
  */
-function buildTabCommands(sessionName: string, tab: TabBlock): TmuxShellCommand[] {
-  const commands: TmuxShellCommand[] = [];
-  const windowName = tab.name;
+function buildPipeMap(pipes: PipeDecl[]): Map<string, { readsFrom?: string; writesTo?: string }> {
+  const map = new Map<string, { readsFrom?: string; writesTo?: string }>();
+  
+  for (const pipe of pipes) {
+    // A writes to B, B writes to A
+    if (!map.has(pipe.paneA)) map.set(pipe.paneA, {});
+    if (!map.has(pipe.paneB)) map.set(pipe.paneB, {});
+    
+    map.get(pipe.paneA)!.writesTo = pipe.paneB;
+    map.get(pipe.paneA)!.readsFrom = pipe.paneB;
+    map.get(pipe.paneB)!.writesTo = pipe.paneA;
+    map.get(pipe.paneB)!.readsFrom = pipe.paneA;
+  }
+  
+  return map;
+}
 
-  // Create window
+function buildTabCommands(sessionName: string, tab: TabBlock, pipeMap: Map<string, any>): Command[] {
+  const commands: Command[] = [];
+  
   commands.push({
     tag: "tmux",
-    args: ["new-window", "-t", sessionName, "-n", windowName],
-    description: `Create window '${windowName}'`,
+    args: ["new-window", "-t", sessionName, "-n", tab.name],
+    description: `Create window '${tab.name}'`,
   });
 
-  // Build panes
-  commands.push(...buildTabPanes(sessionName, tab, false));
-
+  commands.push(...buildTabPanes(sessionName, tab, pipeMap, false));
   return commands;
 }
 
-/**
- * Build pane commands for a tab.
- * @param skipFirstWindow - If true, don't create window (already exists)
- */
-function buildTabPanes(sessionName: string, tab: TabBlock, skipFirstWindow: boolean): TmuxShellCommand[] {
-  const commands: TmuxShellCommand[] = [];
+function buildTabPanes(
+  sessionName: string, 
+  tab: TabBlock, 
+  pipeMap: Map<string, any>,
+  skipFirstWindow: boolean
+): Command[] {
+  const commands: Command[] = [];
   const windowName = tab.name;
   const panes = tab.panes;
 
@@ -89,31 +135,54 @@ function buildTabPanes(sessionName: string, tab: TabBlock, skipFirstWindow: bool
     throw new Error(`Tab '${windowName}' has no panes`);
   }
 
-  // Subsequent panes: split from previous (Law T2.2)
+  // Build pane index map (for targeting)
+  const paneIndices = new Map<string, number>();
+  panes.forEach((p, i) => {
+    // @ts-ignore - pane name access
+    if (p.name) paneIndices.set(p.name, i);
+  });
+
+  // Split panes
   for (let i = 1; i < panes.length; i++) {
     const pane = panes[i]!;
     const layout = pane.layout ?? tab.layout;
     const splitFlag = layout === "horizontal" ? "-h" : "-v";
-
-    // Target the previous pane
     const target = `${sessionName}:${windowName}.${i - 1}`;
 
     commands.push({
       tag: "tmux",
       args: ["split-window", splitFlag, "-t", target],
-      description: `Split ${layout} from pane ${i - 1}`,
+      description: `Split pane ${i}`,
     });
   }
 
-  // Send commands to panes (Law T2.3)
+  // Send commands to panes
   for (let i = 0; i < panes.length; i++) {
     const pane = panes[i]!;
-    if (pane.command) {
-      const target = `${sessionName}:${windowName}.${i}`;
+    // @ts-ignore
+    const paneName = pane.name;
+    const target = `${sessionName}:${windowName}.${i}`;
+    
+    let cmd = pane.command || "";
+    
+    // If pane has pipe connections, wrap with FIFO redirects
+    if (paneName && pipeMap.has(paneName)) {
+      const connections = pipeMap.get(paneName)!;
+      const fifoDir = `/tmp/themis/${sessionName}`;
+      
+      if (connections.writesTo && connections.readsFrom) {
+        const outFifo = `${fifoDir}/${paneName}_to_${connections.writesTo}`;
+        const inFifo = `${fifoDir}/${connections.readsFrom}_to_${paneName}`;
+        // Use cat to keep pipe open and stdbuf for unbuffered
+        cmd = `stdbuf -o0 ${cmd} > ${outFifo} < ${inFifo}`;
+      }
+    }
+    
+    if (cmd) {
       commands.push({
         tag: "tmux",
-        args: ["send-keys", "-t", target, pane.command, "C-m"],
-        description: `Send command to pane ${i}`,
+        args: ["send-keys", "-t", target, cmd, "C-m"],
+        description: `Run in pane ${i}`,
       });
     }
   }
@@ -121,15 +190,15 @@ function buildTabPanes(sessionName: string, tab: TabBlock, skipFirstWindow: bool
   return commands;
 }
 
-/**
- * Format tmux command for display.
- */
-export function formatTmuxCommand(cmd: TmuxShellCommand): string {
+export function formatTmuxCommand(cmd: Command): string {
+  if (cmd.tag === "shell") {
+    return `$ ${cmd.command}`;
+  }
   const args = cmd.args.map(arg => {
     if (arg.includes(" ") || arg.includes("'")) {
       return `"${arg.replace(/"/g, '\\"')}"`;
     }
     return arg;
   });
-  return `tmux ${args.join(" ")}`;
+  return `$ tmux ${args.join(" ")}`;
 }

@@ -28,19 +28,20 @@ function createTestModule(): TabbedModule {
           ],
         },
       ],
+      pipes: [],
     },
   };
 }
 
 describe("Tmux Pane Backend (T1-T4)", () => {
   describe("T1: Split Command Laws", () => {
-    it("creates window for first pane", () => {
+    it("creates session for first tab", () => {
       const module = createTestModule();
       const commands = buildTmuxPaneCommands(module);
 
-      const newWindow = commands.find(c => c.args[0] === "new-window");
-      expect(newWindow).toBeDefined();
-      expect(newWindow?.args).toContain("work");
+      const newSession = commands.find(c => c.tag === "tmux" && c.args[0] === "new-session");
+      expect(newSession).toBeDefined();
+      expect(newSession?.args).toContain("test");
     });
 
     it("splits horizontally with -h flag", () => {
@@ -147,7 +148,7 @@ describe("Tmux Pane Backend (T1-T4)", () => {
       };
 
       const formatted = formatTmuxCommand(cmd);
-      expect(formatted).toBe("tmux new-window -t test -n work");
+      expect(formatted).toBe("$ tmux new-window -t test -n work");
     });
   });
 });

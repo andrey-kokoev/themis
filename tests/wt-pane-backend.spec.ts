@@ -15,6 +15,7 @@ function createTestModule(): TabbedModule {
     imports: [],
     workspace: {
       tag: "TabWorkspace",
+      pipes: [],
       name: "main",
       tabs: [
         {

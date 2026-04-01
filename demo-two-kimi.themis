@@ -1,0 +1,10 @@
+module "two_kimi" {
+  workspace "main" {
+    pipe { between: [left, right] }
+
+    tab "conversation" in local {
+      pane left { command "kimi" }
+      pane right { command "kimi" }
+    }
+  }
+}
