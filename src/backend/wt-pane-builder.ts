@@ -30,11 +30,11 @@ export function buildWtPaneCommand(
 ): WtShellCommand {
   const {
     wtPath = "wt.exe",
-    wslDistro = "Ubuntu",
+    wslDistro = "Ubuntu 24.04.1 LTS",  // Use exact profile name
     workingDir = process.cwd(),
   } = options;
 
-  const args: string[] = [];
+  const args: string[] = ["-w", "0"];  // -w 0 = current window
   let firstTab = true;
 
   for (const tab of module.workspace.tabs) {

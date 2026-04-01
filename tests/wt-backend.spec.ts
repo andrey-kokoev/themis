@@ -32,7 +32,7 @@ describe("Windows Terminal Backend (W1-W5)", () => {
       };
 
       const cmd = buildWtPaneCommand(module);
-      expect(cmd.args[0]).toBe("new-tab");
+      expect(cmd.args).toContain("new-tab");
     });
 
     it("uses split-pane for additional panes", () => {
