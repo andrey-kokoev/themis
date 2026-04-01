@@ -4,8 +4,8 @@ module "two_kimi" {
     pipe { from: right, to: left }
 
     tab "conversation" in local {
-      pane left { command "bash -c 'echo \"Hello, let's collaborate.\"; kimi'" }
-      pane right { command "kimi" }
+      pane left { command "export PATH=\$HOME/.local/bin:\$PATH; echo 'Hello, lets collaborate.'; /home/andrey/.local/bin/kimi" }
+      pane right { command "export PATH=\$HOME/.local/bin:\$PATH; /home/andrey/.local/bin/kimi" }
     }
   }
 }
