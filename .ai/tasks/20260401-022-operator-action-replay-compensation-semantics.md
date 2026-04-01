@@ -1,4 +1,3 @@
---- .ai/tasks/20260401-022-operator-action-replay-compensation-semantics.md ---
 # Task 20260401-022: Operator Action Replay Compensation Semantics
 
 **Objective**: Define and implement a **minimal, explicit compensation semantics** for replayable operator actions so that reversible human interventions can be counteracted by lawful, auditable follow-up actions instead of hidden mutation or deletion.
