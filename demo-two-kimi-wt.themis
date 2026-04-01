@@ -1,0 +1,11 @@
+module "two_kimi" {
+  workspace "main" {
+    pipe { from: left, to: right }
+    pipe { from: right, to: left }
+
+    tab "conversation" in local {
+      pane left { command "bash -c 'echo \"Hello, let's collaborate.\"; kimi'" }
+      pane right { command "kimi" }
+    }
+  }
+}
