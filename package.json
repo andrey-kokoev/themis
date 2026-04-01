@@ -1,0 +1,16 @@
+{
+  "name": "themis",
+  "version": "0.1.0",
+  "description": "PDA Policy Corpus - Executable Law",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run --reporter=verbose",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.4"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
