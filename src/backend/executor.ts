@@ -136,20 +136,22 @@ export async function executeTmuxSequence(
 /**
  * Execute Windows Terminal command.
  * 
- * Phase 2: Windows Terminal support.
+ * Law W3: Fire and forget execution.
  */
 export async function executeWtCommand(
   wtPath: string,
   args: string[]
 ): Promise<ExecutionResult> {
   return new Promise((resolve) => {
-    // WT runs in Windows, so we need to use the Windows path
+    // WT runs in Windows, use shell to handle semicolon separators
+    // The semicolons are WT syntax, not shell syntax, so we need to escape them properly
     const child = spawn(wtPath, args, {
       stdio: ["ignore", "ignore", "ignore"],
       windowsHide: false,
+      shell: false, // Don't use shell - pass args directly
     });
 
-    // WT detaches immediately, so we consider it success if spawn works
+    // WT detaches immediately, consider success if spawn works
     child.on("spawn", () => {
       resolve({
         success: true,
@@ -160,13 +162,34 @@ export async function executeWtCommand(
     });
 
     child.on("error", (error) => {
+      // Common error: wt.exe not found
+      const errorMsg = error.message.includes("ENOENT")
+        ? `Windows Terminal not found at '${wtPath}'. Is it installed and in PATH?`
+        : error.message;
+      
       resolve({
         success: false,
         exitCode: -1,
         stdout: "",
-        stderr: "",
+        stderr: errorMsg,
         error,
       });
     });
   });
+}
+
+/**
+ * Check if Windows Terminal is available.
+ */
+export async function checkWtAvailable(wtPath: string = "wt.exe"): Promise<boolean> {
+  try {
+    const { spawn } = await import("child_process");
+    return new Promise((resolve) => {
+      const child = spawn("which", [wtPath], { stdio: "ignore" });
+      child.on("close", (code) => resolve(code === 0));
+      child.on("error", () => resolve(false));
+    });
+  } catch {
+    return false;
+  }
 }

@@ -21,6 +21,7 @@ import { parseModule } from "./parser/module-parser.js";
 import type { SurfaceModule } from "./types/surface-module.js";
 import type { RoleBlock } from "./types/ast.js";
 import { buildTmuxCommands, formatTmuxCommand } from "./backend/tmux-command-builder.js";
+import { formatWtCommand } from "./backend/wt-command-builder.js";
 import { executeTmuxSequence, checkTmuxSessionExists } from "./backend/executor.js";
 import type { TmuxBackendPlan, BackendStep } from "./types/tmux-backend.js";
 
@@ -234,8 +235,7 @@ async function main(): Promise<number> {
   if (options.backend === "tmux") {
     return await runTmuxBackend(module, options);
   } else {
-    console.error("Error: Windows Terminal backend not yet implemented");
-    return 1;
+    return await runWtBackend(module, options);
   }
 }
 
@@ -296,6 +296,51 @@ async function runTmuxBackend(module: SurfaceModule, options: CliOptions): Promi
     return result.exitCode;
   }
 
+  return 0;
+}
+
+/**
+ * Run Windows Terminal backend.
+ */
+async function runWtBackend(module: SurfaceModule, options: CliOptions): Promise<number> {
+  // Build WT command
+  let cmd;
+  try {
+    const { buildWtCommand } = await import("./backend/wt-command-builder.js");
+    const fileDir = resolve(options.file, "..");
+    cmd = buildWtCommand(module, {
+      workingDir: fileDir,
+    });
+    if (options.verbose) {
+      console.log(`✓ Generated WT command`);
+    }
+  } catch (error) {
+    console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
+    return 1;
+  }
+
+  // Show command
+  if (options.dryRun || options.verbose) {
+    console.log("\nCommand to execute:");
+    console.log(`  $ ${formatWtCommand(cmd)}`);
+    console.log(`    # ${cmd.description}`);
+  }
+
+  if (options.dryRun) {
+    console.log("\n(Dry run - no commands executed)");
+    return 0;
+  }
+
+  // Execute
+  const { executeWtCommand } = await import("./backend/executor.js");
+  const result = await executeWtCommand(cmd.exePath, cmd.args);
+
+  if (!result.success) {
+    console.error(`Error: ${result.stderr}`);
+    return result.exitCode;
+  }
+
+  console.log(`\nLaunched Windows Terminal`);
   return 0;
 }
 

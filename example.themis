@@ -1,0 +1,19 @@
+module "example" {
+  workspace "main" {
+    context { "env" "dev" }
+    persistence "ephemeral"
+    equivalence "canonical"
+    role "editor" {
+      kind "service"
+      subject { identity "ed" reference "e1" }
+      realizer "Local" "htop"
+      witness "Process" "running"
+    }
+    role "shell" {
+      kind "service"
+      subject { identity "sh" reference "s1" }
+      realizer "Local" "bash"
+      witness "Process" "running"
+    }
+  }
+}
