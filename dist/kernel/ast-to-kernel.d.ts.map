@@ -1,0 +1,1 @@
+{"version":3,"file":"ast-to-kernel.d.ts","sourceRoot":"","sources":["../../src/kernel/ast-to-kernel.ts"],"names":[],"mappings":"AAAA;;;;;GAKG;AAEH,OAAO,KAAK,EAAE,SAAS,EAA2B,MAAM,iBAAiB,CAAC;AAC1E,OAAO,KAAK,EACV,eAAe,EAMhB,MAAM,oBAAoB,CAAC;AAE5B;;;;;;GAMG;AACH,wBAAgB,iBAAiB,CAAC,SAAS,EAAE,SAAS,GAAG,eAAe,CAwDvE"}

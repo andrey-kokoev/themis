@@ -1,0 +1,12 @@
+module "workspace" {
+  workspace "main" {
+    tab "kimi-work" in local {
+      pane horizontal { command "kimi" }
+      pane horizontal { command "bash" }
+    }
+    tab "dev" in local layout vertical {
+      pane { command "vim" }
+      pane { command "npm run dev" }
+    }
+  }
+}

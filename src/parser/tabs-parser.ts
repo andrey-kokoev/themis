@@ -189,11 +189,13 @@ class Parser {
     // Optional layout clause
     let layout: LayoutKind = "horizontal";
     if (this.consume("KEYWORD", "layout")) {
-      const layoutTok = this.expect("STRING").value;
+      // Layout can be STRING or KEYWORD
+      const layoutTok = this.match("STRING") ? this.advance().value : 
+                       this.match("KEYWORD") ? this.advance().value : null;
       if (layoutTok !== "horizontal" && layoutTok !== "vertical") {
         throw new Error(`Invalid layout "${layoutTok}" at line ${this.peek().line}`);
       }
-      layout = layoutTok;
+      layout = layoutTok as LayoutKind;
     }
 
     this.expect("LBRACE");
@@ -221,11 +223,10 @@ class Parser {
     if (this.match("STRING") || this.match("KEYWORD")) {
       const layoutTok = this.advance().value;
       if (layoutTok === "horizontal" || layoutTok === "vertical") {
-        layout = layoutTok;
+        layout = layoutTok as LayoutKind;
       } else {
-        // Not a layout, must be start of block - backtrack not needed since we consumed
-        // Actually this is an error
-        throw new Error(`Expected layout or '{' but got "${layoutTok}" at line ${this.peek().line}`);
+        // Not a valid layout keyword - error
+        throw new Error(`Expected layout (horizontal/vertical) or '{' but got "${layoutTok}" at line ${this.peek().line}`);
       }
     }
 

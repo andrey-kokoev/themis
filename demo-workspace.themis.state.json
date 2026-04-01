@@ -1,0 +1,44 @@
+{
+  "version": "1",
+  "module": "workspace",
+  "created": "2026-04-01T21:40:34.319Z",
+  "source": "declared",
+  "session": {
+    "name": "workspace",
+    "backend": "tmux",
+    "tabs": [
+      {
+        "name": "kimi-work",
+        "layout": "horizontal",
+        "panes": [
+          {
+            "index": 0,
+            "command": "kimi",
+            "layout": "horizontal"
+          },
+          {
+            "index": 1,
+            "command": "bash",
+            "layout": "horizontal"
+          }
+        ]
+      },
+      {
+        "name": "dev",
+        "layout": "vertical",
+        "panes": [
+          {
+            "index": 0,
+            "command": "vim",
+            "layout": null
+          },
+          {
+            "index": 1,
+            "command": "npm run dev",
+            "layout": null
+          }
+        ]
+      }
+    ]
+  }
+}
