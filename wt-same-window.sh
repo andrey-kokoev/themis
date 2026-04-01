@@ -1,29 +1,20 @@
 #!/bin/bash
-# Launch WT in same window from WSL
+# Launch WT in same window from WSL using window ID
 
-WT_ARGS="$@"
+# Get the PID of the current shell's terminal
+PARENT_PID=$PPID
 
+# Use PowerShell to find the WT window containing our process
 powershell.exe -NoProfile -Command "
-  Add-Type @'
-    using System;
-    using System.Runtime.InteropServices;
-    public class Win32 {
-      [DllImport(\"user32.dll\")]
-      public static extern IntPtr GetForegroundWindow();
-    }
-'@
-  $hwnd = [Win32]::GetForegroundWindow()
-  $procs = Get-Process WindowsTerminal -ErrorAction SilentlyContinue
-  $windowId = $null
-  foreach ($p in $procs) {
-    if ($p.MainWindowHandle -eq $hwnd) {
-      $windowId = $p.Id
-      break
-    }
-  }
-  if ($windowId) {
-    wt.exe -w $windowId $WT_ARGS
+\$p = Get-Process -Id $PARENT_PID -ErrorAction SilentlyContinue
+if (\$p) {
+  \$wt = Get-Process WindowsTerminal | Where-Object { \$_.MainWindowHandle -ne 0 } | Select-Object -First 1
+  if (\$wt) {
+    wt.exe -w \$wt.Id new-tab --profile Ubuntu -- wsl.exe -d Ubuntu bash -c \"cd '$PWD' && bash\"
   } else {
-    wt.exe $WT_ARGS
+    wt.exe new-tab --profile Ubuntu -- wsl.exe -d Ubuntu bash -c \"cd '$PWD' && bash\"
   }
+} else {
+  wt.exe new-tab --profile Ubuntu -- wsl.exe -d Ubuntu bash -c \"cd '$PWD' && bash\"
+}
 "
