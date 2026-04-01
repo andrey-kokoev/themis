@@ -71,7 +71,7 @@ function buildTabArgs(tab: TabBlock, wslDistro: string, workingDir: string): str
   args.push("--title", tab.name);
   args.push("--profile", wslDistro);
 
-  // First pane command - wrap entire thing in single quotes
+  // First pane command
   if (panes[0]?.command) {
     const cmd = wrapCmd(panes[0].command, workingDir);
     args.push("--", "wsl.exe", "-d", wslDistro, "bash", "-c", cmd);
@@ -98,18 +98,15 @@ function buildTabArgs(tab: TabBlock, wslDistro: string, workingDir: string): str
 
 /**
  * Wrap command with cd to working directory.
- * Returns a single string suitable for bash -c.
+ * Properly escapes single quotes for bash -c.
  */
 function wrapCmd(cmd: string, workingDir: string): string {
-  // Simple approach: wrap the entire command in single quotes
-  // If the command contains single quotes, we need to handle that
-  if (cmd.includes("'")) {
-    // Replace ' with '"'"' (end quote, literal quote, start quote)
-    const escapedCmd = cmd.replace(/'/g, "'\"'\"'");
-    return `cd '${workingDir}' && ${escapedCmd}`;
-  }
-  // No single quotes in command - simple case
-  return `cd '${workingDir}' && ${cmd}`;
+  // Escape single quotes: ' -> '\''
+  // This ends the single quote, adds an escaped quote, then restarts
+  const escapedCmd = cmd.replace(/'/g, "'\\''");
+  const escapedDir = workingDir.replace(/'/g, "'\\''");
+  
+  return `cd '${escapedDir}' && ${escapedCmd}`;
 }
 
 /**
@@ -123,7 +120,6 @@ function countPanes(module: TabbedModule): number {
  * Format WT command for display.
  */
 export function formatWtCommand(cmd: WtShellCommand): string {
-  // Quote args that contain spaces
   return cmd.exePath + " " + cmd.args.map(arg => {
     if (arg.includes(" ") || arg.includes(";")) {
       return `"${arg}"`;
