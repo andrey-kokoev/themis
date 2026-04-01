@@ -3,9 +3,14 @@
   "version": "0.1.0",
   "description": "PDA Policy Corpus - Executable Law",
   "type": "module",
+  "bin": {
+    "themis": "./dist/cli.js"
+  },
   "scripts": {
     "test": "vitest run --reporter=verbose",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "build": "tsc",
+    "themis": "node dist/cli.js"
   },
   "devDependencies": {
     "vitest": "^3.2.4"
