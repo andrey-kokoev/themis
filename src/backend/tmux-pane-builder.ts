@@ -24,9 +24,26 @@ export type TmuxShellCommand = {
 export function buildTmuxPaneCommands(module: TabbedModule): TmuxShellCommand[] {
   const commands: TmuxShellCommand[] = [];
   const sessionName = module.moduleId;
+  const tabs = module.workspace.tabs;
 
-  for (const tab of module.workspace.tabs) {
-    commands.push(...buildTabCommands(sessionName, tab));
+  if (tabs.length === 0) {
+    throw new Error("Module has no tabs");
+  }
+
+  // Create session with first tab
+  const firstTab = tabs[0]!;
+  commands.push({
+    tag: "tmux",
+    args: ["new-session", "-d", "-s", sessionName, "-n", firstTab.name],
+    description: `Create session '${sessionName}' with window '${firstTab.name}'`,
+  });
+
+  // Build first tab's panes (skipping window creation since done above)
+  commands.push(...buildTabPanes(sessionName, firstTab, true));
+
+  // Build remaining tabs
+  for (let i = 1; i < tabs.length; i++) {
+    commands.push(...buildTabCommands(sessionName, tabs[i]!));
   }
 
   // Final attachment
@@ -40,9 +57,30 @@ export function buildTmuxPaneCommands(module: TabbedModule): TmuxShellCommand[] 
 }
 
 /**
- * Build commands for a single tab.
+ * Build commands for a single tab (creates window first).
  */
 function buildTabCommands(sessionName: string, tab: TabBlock): TmuxShellCommand[] {
+  const commands: TmuxShellCommand[] = [];
+  const windowName = tab.name;
+
+  // Create window
+  commands.push({
+    tag: "tmux",
+    args: ["new-window", "-t", sessionName, "-n", windowName],
+    description: `Create window '${windowName}'`,
+  });
+
+  // Build panes
+  commands.push(...buildTabPanes(sessionName, tab, false));
+
+  return commands;
+}
+
+/**
+ * Build pane commands for a tab.
+ * @param skipFirstWindow - If true, don't create window (already exists)
+ */
+function buildTabPanes(sessionName: string, tab: TabBlock, skipFirstWindow: boolean): TmuxShellCommand[] {
   const commands: TmuxShellCommand[] = [];
   const windowName = tab.name;
   const panes = tab.panes;
@@ -50,13 +88,6 @@ function buildTabCommands(sessionName: string, tab: TabBlock): TmuxShellCommand[
   if (panes.length === 0) {
     throw new Error(`Tab '${windowName}' has no panes`);
   }
-
-  // First pane: create window (Law T2.1)
-  commands.push({
-    tag: "tmux",
-    args: ["new-window", "-t", sessionName, "-n", windowName],
-    description: `Create window '${windowName}'`,
-  });
 
   // Subsequent panes: split from previous (Law T2.2)
   for (let i = 1; i < panes.length; i++) {
