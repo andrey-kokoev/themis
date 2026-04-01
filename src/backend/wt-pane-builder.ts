@@ -74,11 +74,11 @@ function buildTabArgs(tab: TabBlock, wslDistro: string, workingDir: string): str
   args.push("new-tab");
   args.push("--title", tab.name);
   args.push("--profile", wslDistro);
-  args.push("--startingDirectory", wslToWindowsPath(workingDir, wslDistro));
 
   // First pane command
   if (panes[0]?.command) {
-    args.push("--", "wsl.exe", "-d", wslDistro, "-e", "bash", "-c", panes[0].command);
+    const wrappedCmd = wrapCommand(panes[0].command, workingDir);
+    args.push("--", "wsl.exe", "-d", wslDistro, "-e", "bash", "-c", wrappedCmd);
   }
 
   // Subsequent panes: split-pane
@@ -90,10 +90,10 @@ function buildTabArgs(tab: TabBlock, wslDistro: string, workingDir: string): str
     args.push(";");
     args.push("split-pane", splitFlag);
     args.push("--profile", wslDistro);
-    args.push("--startingDirectory", wslToWindowsPath(workingDir, wslDistro));
 
     if (pane.command) {
-      args.push("--", "wsl.exe", "-d", wslDistro, "-e", "bash", "-c", pane.command);
+      const wrappedCmd = wrapCommand(pane.command, workingDir);
+      args.push("--", "wsl.exe", "-d", wslDistro, "-e", "bash", "-c", wrappedCmd);
     }
   }
 
@@ -101,11 +101,13 @@ function buildTabArgs(tab: TabBlock, wslDistro: string, workingDir: string): str
 }
 
 /**
- * Convert Unix path to Windows WSL UNC path.
+ * Wrap a command with cd to working directory.
  */
-function wslToWindowsPath(unixPath: string, distro: string = "Ubuntu"): string {
-  const normalized = unixPath.replace(/^\//, "").replace(/\//g, "\\");
-  return `\\\\wsl$\\${distro}\\${normalized}`;
+function wrapCommand(cmd: string, workingDir: string): string {
+  // Escape single quotes in the command by replacing ' with '"'"'
+  const escapedCmd = cmd.replace(/'/g, "'\"'\"'");
+  const escapedDir = workingDir.replace(/'/g, "'\"'\"'");
+  return `cd '${escapedDir}' && ${escapedCmd}`;
 }
 
 /**
@@ -119,11 +121,5 @@ function countPanes(module: TabbedModule): number {
  * Format WT command for display.
  */
 export function formatWtCommand(cmd: WtShellCommand): string {
-  const args = cmd.args.map(arg => {
-    if (arg.includes(" ") || arg.includes(";") || arg.includes("\\")) {
-      return `"${arg}"`;
-    }
-    return arg;
-  });
-  return `${cmd.exePath} ${args.join(" ")}`;
+  return `${cmd.exePath} ${cmd.args.join(" ")}`;
 }

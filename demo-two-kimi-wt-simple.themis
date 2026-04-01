@@ -1,0 +1,8 @@
+module "two_kimi" {
+  workspace "main" {
+    tab "conversation" in local {
+      pane left { command "echo 'Hello'; sleep 5" }
+      pane right { command "echo 'World'; sleep 5" }
+    }
+  }
+}
