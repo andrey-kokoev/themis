@@ -147,7 +147,7 @@ describe("Windows Terminal Backend (W1-W5)", () => {
   });
 
   describe("W3: Command Association", () => {
-    it("includes command in first pane", () => {
+    it("includes wrapped command in first pane", () => {
       const module: TabbedModule = {
         tag: "TabbedModule",
         moduleId: "test",
@@ -168,7 +168,8 @@ describe("Windows Terminal Backend (W1-W5)", () => {
       };
 
       const cmd = buildWtPaneCommand(module);
-      expect(cmd.args).toContain("vim");
+      const hasCmd = cmd.args.some(arg => arg.includes("vim"));
+      expect(hasCmd).toBe(true);
     });
   });
 

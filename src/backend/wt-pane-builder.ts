@@ -19,8 +19,6 @@ export type WtShellCommand = {
 
 /**
  * Build Windows Terminal command from tabbed module.
- * 
- * Law W1-W2: Single invocation with new-tab and split-pane commands.
  */
 export function buildWtPaneCommand(
   module: TabbedModule,
@@ -40,13 +38,11 @@ export function buildWtPaneCommand(
   let firstTab = true;
 
   for (const tab of module.workspace.tabs) {
-    // Separator between tabs
     if (!firstTab) {
       args.push(";");
     }
     firstTab = false;
 
-    // Build tab arguments
     const tabArgs = buildTabArgs(tab, wslDistro, workingDir);
     args.push(...tabArgs);
   }
@@ -55,7 +51,7 @@ export function buildWtPaneCommand(
     tag: "wt",
     exePath: wtPath,
     args,
-    description: `Launch Windows Terminal with ${module.workspace.tabs.length} tab(s), ${countPanes(module)} pane(s)`,
+    description: `Launch Windows Terminal with ${module.workspace.tabs.length} tab(s)`,
   };
 }
 
@@ -75,10 +71,10 @@ function buildTabArgs(tab: TabBlock, wslDistro: string, workingDir: string): str
   args.push("--title", tab.name);
   args.push("--profile", wslDistro);
 
-  // First pane command
+  // First pane command - wrap entire thing in single quotes
   if (panes[0]?.command) {
-    const wrappedCmd = wrapCommand(panes[0].command, workingDir);
-    args.push("--", "wsl.exe", "-d", wslDistro, "-e", "bash", "-c", wrappedCmd);
+    const cmd = wrapCmd(panes[0].command, workingDir);
+    args.push("--", "wsl.exe", "-d", wslDistro, "bash", "-c", cmd);
   }
 
   // Subsequent panes: split-pane
@@ -92,8 +88,8 @@ function buildTabArgs(tab: TabBlock, wslDistro: string, workingDir: string): str
     args.push("--profile", wslDistro);
 
     if (pane.command) {
-      const wrappedCmd = wrapCommand(pane.command, workingDir);
-      args.push("--", "wsl.exe", "-d", wslDistro, "-e", "bash", "-c", wrappedCmd);
+      const cmd = wrapCmd(pane.command, workingDir);
+      args.push("--", "wsl.exe", "-d", wslDistro, "bash", "-c", cmd);
     }
   }
 
@@ -101,13 +97,19 @@ function buildTabArgs(tab: TabBlock, wslDistro: string, workingDir: string): str
 }
 
 /**
- * Wrap a command with cd to working directory.
+ * Wrap command with cd to working directory.
+ * Returns a single string suitable for bash -c.
  */
-function wrapCommand(cmd: string, workingDir: string): string {
-  // Escape single quotes in the command by replacing ' with '"'"'
-  const escapedCmd = cmd.replace(/'/g, "'\"'\"'");
-  const escapedDir = workingDir.replace(/'/g, "'\"'\"'");
-  return `cd '${escapedDir}' && ${escapedCmd}`;
+function wrapCmd(cmd: string, workingDir: string): string {
+  // Simple approach: wrap the entire command in single quotes
+  // If the command contains single quotes, we need to handle that
+  if (cmd.includes("'")) {
+    // Replace ' with '"'"' (end quote, literal quote, start quote)
+    const escapedCmd = cmd.replace(/'/g, "'\"'\"'");
+    return `cd '${workingDir}' && ${escapedCmd}`;
+  }
+  // No single quotes in command - simple case
+  return `cd '${workingDir}' && ${cmd}`;
 }
 
 /**
@@ -121,5 +123,11 @@ function countPanes(module: TabbedModule): number {
  * Format WT command for display.
  */
 export function formatWtCommand(cmd: WtShellCommand): string {
-  return `${cmd.exePath} ${cmd.args.join(" ")}`;
+  // Quote args that contain spaces
+  return cmd.exePath + " " + cmd.args.map(arg => {
+    if (arg.includes(" ") || arg.includes(";")) {
+      return `"${arg}"`;
+    }
+    return arg;
+  }).join(" ");
 }

@@ -1,26 +1,24 @@
 /**
- * Tmux Pane Command Builder (Task 029B)
+ * Tmux Pane Command Builder (Task 029B, 030)
  *
- * Implements lawbook 064B.
- * Converts TabbedModule with panes into tmux split commands.
+ * Implements lawbook 064B (pane layouts) and 068 (direct pane pipes).
  */
 import type { TabbedModule } from "../types/tabs.js";
-/**
- * Tmux shell command.
- */
 export type TmuxShellCommand = {
     tag: "tmux";
     args: string[];
     description: string;
 };
+export type ShellCommand = {
+    tag: "shell";
+    command: string;
+    description: string;
+};
+export type Command = TmuxShellCommand | ShellCommand;
 /**
- * Build tmux commands from tabbed module.
- *
- * Law T1-T2: Creates session, windows, splits, and sends commands.
+ * Build commands from tabbed module.
+ * Returns shell commands for setup + tmux commands.
  */
-export declare function buildTmuxPaneCommands(module: TabbedModule): TmuxShellCommand[];
-/**
- * Format tmux command for display.
- */
-export declare function formatTmuxCommand(cmd: TmuxShellCommand): string;
+export declare function buildTmuxPaneCommands(module: TabbedModule): Command[];
+export declare function formatTmuxCommand(cmd: Command): string;
 //# sourceMappingURL=tmux-pane-builder.d.ts.map

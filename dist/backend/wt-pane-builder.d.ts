@@ -16,8 +16,6 @@ export type WtShellCommand = {
 };
 /**
  * Build Windows Terminal command from tabbed module.
- *
- * Law W1-W2: Single invocation with new-tab and split-pane commands.
  */
 export declare function buildWtPaneCommand(module: TabbedModule, options?: {
     wtPath?: string;

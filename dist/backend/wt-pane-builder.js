@@ -6,20 +6,16 @@
  */
 /**
  * Build Windows Terminal command from tabbed module.
- *
- * Law W1-W2: Single invocation with new-tab and split-pane commands.
  */
 export function buildWtPaneCommand(module, options = {}) {
     const { wtPath = "wt.exe", wslDistro = "Ubuntu", workingDir = process.cwd(), } = options;
     const args = [];
     let firstTab = true;
     for (const tab of module.workspace.tabs) {
-        // Separator between tabs
         if (!firstTab) {
             args.push(";");
         }
         firstTab = false;
-        // Build tab arguments
         const tabArgs = buildTabArgs(tab, wslDistro, workingDir);
         args.push(...tabArgs);
     }
@@ -27,7 +23,7 @@ export function buildWtPaneCommand(module, options = {}) {
         tag: "wt",
         exePath: wtPath,
         args,
-        description: `Launch Windows Terminal with ${module.workspace.tabs.length} tab(s), ${countPanes(module)} pane(s)`,
+        description: `Launch Windows Terminal with ${module.workspace.tabs.length} tab(s)`,
     };
 }
 /**
@@ -43,10 +39,10 @@ function buildTabArgs(tab, wslDistro, workingDir) {
     args.push("new-tab");
     args.push("--title", tab.name);
     args.push("--profile", wslDistro);
-    args.push("--startingDirectory", wslToWindowsPath(workingDir, wslDistro));
-    // First pane command
+    // First pane command - wrap entire thing in single quotes
     if (panes[0]?.command) {
-        args.push("--", "wsl.exe", "-d", wslDistro, "-e", "bash", "-c", panes[0].command);
+        const cmd = wrapCmd(panes[0].command, workingDir);
+        args.push("--", "wsl.exe", "-d", wslDistro, "bash", "-c", cmd);
     }
     // Subsequent panes: split-pane
     for (let i = 1; i < panes.length; i++) {
@@ -56,19 +52,27 @@ function buildTabArgs(tab, wslDistro, workingDir) {
         args.push(";");
         args.push("split-pane", splitFlag);
         args.push("--profile", wslDistro);
-        args.push("--startingDirectory", wslToWindowsPath(workingDir, wslDistro));
         if (pane.command) {
-            args.push("--", "wsl.exe", "-d", wslDistro, "-e", "bash", "-c", pane.command);
+            const cmd = wrapCmd(pane.command, workingDir);
+            args.push("--", "wsl.exe", "-d", wslDistro, "bash", "-c", cmd);
         }
     }
     return args;
 }
 /**
- * Convert Unix path to Windows WSL UNC path.
+ * Wrap command with cd to working directory.
+ * Returns a single string suitable for bash -c.
  */
-function wslToWindowsPath(unixPath, distro = "Ubuntu") {
-    const normalized = unixPath.replace(/^\//, "").replace(/\//g, "\\");
-    return `\\\\wsl$\\${distro}\\${normalized}`;
+function wrapCmd(cmd, workingDir) {
+    // Simple approach: wrap the entire command in single quotes
+    // If the command contains single quotes, we need to handle that
+    if (cmd.includes("'")) {
+        // Replace ' with '"'"' (end quote, literal quote, start quote)
+        const escapedCmd = cmd.replace(/'/g, "'\"'\"'");
+        return `cd '${workingDir}' && ${escapedCmd}`;
+    }
+    // No single quotes in command - simple case
+    return `cd '${workingDir}' && ${cmd}`;
 }
 /**
  * Count total panes in module.
@@ -80,12 +84,12 @@ function countPanes(module) {
  * Format WT command for display.
  */
 export function formatWtCommand(cmd) {
-    const args = cmd.args.map(arg => {
-        if (arg.includes(" ") || arg.includes(";") || arg.includes("\\")) {
+    // Quote args that contain spaces
+    return cmd.exePath + " " + cmd.args.map(arg => {
+        if (arg.includes(" ") || arg.includes(";")) {
             return `"${arg}"`;
         }
         return arg;
-    });
-    return `${cmd.exePath} ${args.join(" ")}`;
+    }).join(" ");
 }
 //# sourceMappingURL=wt-pane-builder.js.map

@@ -13,6 +13,8 @@ export type LayoutKind = "horizontal" | "vertical";
  */
 export type PaneBlock = {
     tag: "PaneBlock";
+    /** Optional name for referencing from pipes */
+    name?: string;
     /** Optional explicit layout (defaults to tab layout) */
     layout?: LayoutKind;
     /** Optional command to run in pane */
@@ -31,13 +33,46 @@ export type TabBlock = {
     panes: PaneBlock[];
 };
 /**
- * Operational workspace containing tabs.
+ * Unidirectional pipe declaration.
+ * Data flows from -> to only.
+ */
+export type PipeDecl = {
+    tag: "PipeDecl";
+    from: string;
+    to: string;
+};
+/**
+ * Send statement in startup block.
+ */
+export type SendStmt = {
+    tag: "SendStmt";
+    message: string;
+    target: string;
+};
+/**
+ * Wait statement in startup block.
+ */
+export type WaitStmt = {
+    tag: "WaitStmt";
+    seconds: number;
+};
+/**
+ * Startup block for workspace initialization.
+ */
+export type StartupBlock = {
+    tag: "StartupBlock";
+    statements: (SendStmt | WaitStmt)[];
+};
+/**
+ * Operational workspace containing tabs, pipes, and startup.
  * Alternative to Workspace for CLI/operational use.
  */
 export type TabWorkspace = {
     tag: "TabWorkspace";
     name: string;
     tabs: TabBlock[];
+    pipes: PipeDecl[];
+    startup?: StartupBlock;
 };
 /**
  * Extended SurfaceModule with tab support.

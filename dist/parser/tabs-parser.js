@@ -5,7 +5,7 @@
  * Grammar from lawbook 064A.
  */
 const KEYWORDS = new Set([
-    "module", "workspace", "tab", "in", "layout", "horizontal", "vertical", "pane", "command"
+    "module", "import", "workspace", "tab", "in", "layout", "horizontal", "vertical", "pane", "command", "pipe", "from", "to", "startup", "send", "wait"
 ]);
 // Lexer
 function* lexer(input) {
@@ -57,7 +57,7 @@ function* lexer(input) {
             yield { type: "STRING", value, line, column: startCol };
             continue;
         }
-        // Braces
+        // Braces and brackets
         if (ch === "{") {
             advance();
             yield { type: "LBRACE", value: "{", line, column: column - 1 };
@@ -66,6 +66,26 @@ function* lexer(input) {
         if (ch === "}") {
             advance();
             yield { type: "RBRACE", value: "}", line, column: column - 1 };
+            continue;
+        }
+        if (ch === "[") {
+            advance();
+            yield { type: "LBRACKET", value: "[", line, column: column - 1 };
+            continue;
+        }
+        if (ch === "]") {
+            advance();
+            yield { type: "RBRACKET", value: "]", line, column: column - 1 };
+            continue;
+        }
+        if (ch === ":") {
+            advance();
+            yield { type: "COLON", value: ":", line, column: column - 1 };
+            continue;
+        }
+        if (ch === ",") {
+            advance();
+            yield { type: "COMMA", value: ",", line, column: column - 1 };
             continue;
         }
         // Keywords and identifiers
@@ -149,11 +169,75 @@ class Parser {
         const name = this.expect("STRING").value;
         this.expect("LBRACE");
         const tabs = [];
+        const pipes = [];
+        let startup;
         while (!this.match("RBRACE") && !this.match("EOF")) {
-            tabs.push(this.parseTab());
+            if (this.match("KEYWORD", "tab")) {
+                tabs.push(this.parseTab());
+            }
+            else if (this.match("KEYWORD", "pipe")) {
+                pipes.push(this.parsePipe());
+            }
+            else if (this.match("KEYWORD", "startup")) {
+                startup = this.parseStartup();
+            }
+            else {
+                throw new Error(`Unexpected token ${this.peek().value} at line ${this.peek().line}`);
+            }
         }
         this.expect("RBRACE");
-        return { tag: "TabWorkspace", name, tabs };
+        return { tag: "TabWorkspace", name, tabs, pipes, startup };
+    }
+    parseStartup() {
+        this.expect("KEYWORD", "startup");
+        this.expect("LBRACE");
+        const statements = [];
+        while (!this.match("RBRACE") && !this.match("EOF")) {
+            if (this.match("KEYWORD", "send")) {
+                statements.push(this.parseSendStmt());
+            }
+            else if (this.match("KEYWORD", "wait")) {
+                statements.push(this.parseWaitStmt());
+            }
+            else {
+                throw new Error(`Unexpected token ${this.peek().value} in startup block at line ${this.peek().line}`);
+            }
+        }
+        this.expect("RBRACE");
+        return { tag: "StartupBlock", statements };
+    }
+    parseSendStmt() {
+        this.expect("KEYWORD", "send");
+        const message = this.expect("STRING").value;
+        this.expect("KEYWORD", "to");
+        const target = this.expect("STRING").value;
+        return { tag: "SendStmt", message, target };
+    }
+    parseWaitStmt() {
+        this.expect("KEYWORD", "wait");
+        const secondsStr = this.expect("STRING").value;
+        const seconds = parseFloat(secondsStr);
+        if (isNaN(seconds)) {
+            throw new Error(`Invalid wait duration "${secondsStr}" at line ${this.peek().line}`);
+        }
+        // Consume optional 's' suffix if present as separate token
+        if (this.match("KEYWORD", "s")) {
+            this.advance();
+        }
+        return { tag: "WaitStmt", seconds };
+    }
+    parsePipe() {
+        this.expect("KEYWORD", "pipe");
+        this.expect("LBRACE");
+        this.expect("KEYWORD", "from");
+        this.expect("COLON");
+        const from = this.expect("STRING").value;
+        this.expect("COMMA");
+        this.expect("KEYWORD", "to");
+        this.expect("COLON");
+        const to = this.expect("STRING").value;
+        this.expect("RBRACE");
+        return { tag: "PipeDecl", from, to };
     }
     parseTab() {
         this.expect("KEYWORD", "tab");
@@ -163,7 +247,9 @@ class Parser {
         // Optional layout clause
         let layout = "horizontal";
         if (this.consume("KEYWORD", "layout")) {
-            const layoutTok = this.expect("STRING").value;
+            // Layout can be STRING or KEYWORD
+            const layoutTok = this.match("STRING") ? this.advance().value :
+                this.match("KEYWORD") ? this.advance().value : null;
             if (layoutTok !== "horizontal" && layoutTok !== "vertical") {
                 throw new Error(`Invalid layout "${layoutTok}" at line ${this.peek().line}`);
             }
@@ -183,17 +269,28 @@ class Parser {
     }
     parsePane() {
         this.expect("KEYWORD", "pane");
-        // Optional layout modifier
+        // Optional name
+        let name;
+        if (this.match("STRING")) {
+            name = this.advance().value;
+        }
+        // Optional layout modifier (if name wasn't specified, check for layout)
         let layout;
-        if (this.match("STRING") || this.match("KEYWORD")) {
+        if (!name && (this.match("STRING") || this.match("KEYWORD"))) {
             const layoutTok = this.advance().value;
             if (layoutTok === "horizontal" || layoutTok === "vertical") {
                 layout = layoutTok;
             }
             else {
-                // Not a layout, must be start of block - backtrack not needed since we consumed
-                // Actually this is an error
-                throw new Error(`Expected layout or '{' but got "${layoutTok}" at line ${this.peek().line}`);
+                throw new Error(`Expected layout (horizontal/vertical) or '{' but got "${layoutTok}" at line ${this.peek().line}`);
+            }
+        }
+        else if (name && this.match("KEYWORD")) {
+            // Check if next keyword is a layout
+            const layoutTok = this.peek().value;
+            if (layoutTok === "horizontal" || layoutTok === "vertical") {
+                this.advance();
+                layout = layoutTok;
             }
         }
         this.expect("LBRACE");
@@ -203,7 +300,7 @@ class Parser {
             command = this.expect("STRING").value;
         }
         this.expect("RBRACE");
-        return { tag: "PaneBlock", layout, command };
+        return { tag: "PaneBlock", name, layout, command };
     }
 }
 /**
