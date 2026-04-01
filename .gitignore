@@ -1,0 +1,19 @@
+# generated artifacts
+/policy/generated/
+/policy/dist/
+
+# runtime state
+/policy/state/
+
+# cache
+/policy/cache/
+
+# node
+node_modules/
+
+# temp
+*.log
+*.tmp
+
+# history
+.history/
