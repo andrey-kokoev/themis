@@ -1,6 +1,7 @@
 module "two_kimi" {
   workspace "main" {
-    pipe { between: [left, right] }
+    pipe { from: left, to: right }
+    pipe { from: right, to: left }
 
     tab "conversation" in local {
       pane left { command "kimi" }

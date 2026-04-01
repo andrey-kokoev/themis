@@ -37,12 +37,13 @@ export type TabBlock = {
 };
 
 /**
- * Pipe declaration connecting two panes directly.
+ * Unidirectional pipe declaration.
+ * Data flows from -> to only.
  */
 export type PipeDecl = {
   tag: "PipeDecl";
-  paneA: string;
-  paneB: string;
+  from: string;
+  to: string;
 };
 
 /**

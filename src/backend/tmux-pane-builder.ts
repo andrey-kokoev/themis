@@ -47,17 +47,11 @@ export function buildTmuxPaneCommands(module: TabbedModule): Command[] {
     });
     
     for (const pipe of pipes) {
-      const fifoAtoB = `${fifoDir}/${pipe.paneA}_to_${pipe.paneB}`;
-      const fifoBtoA = `${fifoDir}/${pipe.paneB}_to_${pipe.paneA}`;
+      const fifoPath = `${fifoDir}/${pipe.from}_to_${pipe.to}`;
       commands.push({
         tag: "shell",
-        command: `mkfifo ${fifoAtoB} 2>/dev/null || true`,
-        description: `Create FIFO ${pipe.paneA}_to_${pipe.paneB}`,
-      });
-      commands.push({
-        tag: "shell",
-        command: `mkfifo ${fifoBtoA} 2>/dev/null || true`,
-        description: `Create FIFO ${pipe.paneB}_to_${pipe.paneA}`,
+        command: `mkfifo ${fifoPath} 2>/dev/null || true`,
+        description: `Create FIFO ${pipe.from}_to_${pipe.to}`,
       });
     }
   }
@@ -89,20 +83,18 @@ export function buildTmuxPaneCommands(module: TabbedModule): Command[] {
 }
 
 /**
- * Build map of pane connections from pipe declarations.
+ * Build map of pane connections from unidirectional pipe declarations.
  */
 function buildPipeMap(pipes: PipeDecl[]): Map<string, { readsFrom?: string; writesTo?: string }> {
   const map = new Map<string, { readsFrom?: string; writesTo?: string }>();
   
   for (const pipe of pipes) {
-    // A writes to B, B writes to A
-    if (!map.has(pipe.paneA)) map.set(pipe.paneA, {});
-    if (!map.has(pipe.paneB)) map.set(pipe.paneB, {});
+    // from writes to to
+    if (!map.has(pipe.from)) map.set(pipe.from, {});
+    if (!map.has(pipe.to)) map.set(pipe.to, {});
     
-    map.get(pipe.paneA)!.writesTo = pipe.paneB;
-    map.get(pipe.paneA)!.readsFrom = pipe.paneB;
-    map.get(pipe.paneB)!.writesTo = pipe.paneA;
-    map.get(pipe.paneB)!.readsFrom = pipe.paneA;
+    map.get(pipe.from)!.writesTo = pipe.to;
+    map.get(pipe.to)!.readsFrom = pipe.from;
   }
   
   return map;
@@ -166,15 +158,22 @@ function buildTabPanes(
     let cmd = pane.command || "";
     
     // If pane has pipe connections, wrap with FIFO redirects
-    if (paneName && pipeMap.has(paneName)) {
-      const connections = pipeMap.get(paneName)!;
+    const connections = paneName ? pipeMap.get(paneName) : undefined;
+    if (connections && (connections.writesTo || connections.readsFrom)) {
       const fifoDir = `/tmp/themis/${sessionName}`;
+      const redirects: string[] = [];
       
-      if (connections.writesTo && connections.readsFrom) {
+      if (connections.writesTo) {
         const outFifo = `${fifoDir}/${paneName}_to_${connections.writesTo}`;
+        redirects.push(`> ${outFifo}`);
+      }
+      if (connections.readsFrom) {
         const inFifo = `${fifoDir}/${connections.readsFrom}_to_${paneName}`;
-        // Use cat to keep pipe open and stdbuf for unbuffered
-        cmd = `stdbuf -o0 ${cmd} > ${outFifo} < ${inFifo}`;
+        redirects.push(`< ${inFifo}`);
+      }
+      
+      if (redirects.length > 0) {
+        cmd = `stdbuf -o0 ${cmd} ${redirects.join(" ")}`;
       }
     }
     

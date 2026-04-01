@@ -18,7 +18,7 @@ interface Token {
 }
 
 const KEYWORDS = new Set([
-  "module", "import", "workspace", "tab", "in", "layout", "horizontal", "vertical", "pane", "command", "pipe", "between"
+  "module", "import", "workspace", "tab", "in", "layout", "horizontal", "vertical", "pane", "command", "pipe", "from", "to"
 ]);
 
 // Lexer
@@ -195,18 +195,20 @@ class Parser {
   private parsePipe(): PipeDecl {
     this.expect("KEYWORD", "pipe");
     this.expect("LBRACE");
-    this.expect("KEYWORD", "between");
+    
+    this.expect("KEYWORD", "from");
     this.expect("COLON");
-    this.expect("LBRACKET");
+    const from = this.expect("STRING").value;
     
-    const paneA = this.expect("STRING").value;
     this.expect("COMMA");
-    const paneB = this.expect("STRING").value;
     
-    this.expect("RBRACKET");
+    this.expect("KEYWORD", "to");
+    this.expect("COLON");
+    const to = this.expect("STRING").value;
+    
     this.expect("RBRACE");
 
-    return { tag: "PipeDecl", paneA, paneB };
+    return { tag: "PipeDecl", from, to };
   }
 
   private parseTab(): TabBlock {

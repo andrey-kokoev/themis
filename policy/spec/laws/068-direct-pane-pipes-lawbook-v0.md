@@ -7,7 +7,7 @@ order: 68
 
 # Direct Pane Pipes Lawbook
 
-Defines bidirectional pipe semantics between two panes.
+Defines unidirectional pipe semantics between two panes.
 
 ---
 
@@ -15,43 +15,49 @@ Defines bidirectional pipe semantics between two panes.
 
 ### P1.1: Syntax
 ```
-PipeDecl ::= "pipe" "{" "between" ":" "[" PaneRef "," PaneRef "]" "}"
+PipeDecl ::= "pipe" "{" "from" ":" PaneRef "," "to" ":" PaneRef "}"
 PaneRef  ::= identifier
 ```
 
-### P1.2: Exactly Two Panes
-A pipe MUST connect exactly two distinct panes.
+### P1.2: Unidirectional
+A pipe SHALL carry data in one direction only: `from` → `to`.
 
 ### P1.3: Pane Existence
 Referenced panes MUST exist in the workspace.
+
+### P1.4: Bidirectional Pairs
+To achieve bidirectional communication, declare TWO pipes:
+```
+pipe { from: A, to: B }
+pipe { from: B, to: A }
+```
 
 ---
 
 ## P2: FIFO Creation Laws
 
-### P2.1: Two FIFOs Created
-For pipe `{ between: [A, B] }`, Themis SHALL create:
+### P2.1: One FIFO per Pipe
+For pipe `{ from: A, to: B }`, Themis SHALL create:
 - `A_to_B`: A writes, B reads
-- `B_to_A`: B writes, A reads
 
 ### P2.2: Location
 FIFOs SHALL be created in `/tmp/themis/<module_id>/`.
 
 ### P2.3: Naming
-Format: `<paneA>_to_<paneB>`
+Format: `<from>_to_<to>`
 
 ---
 
 ## P3: Connection Laws
 
 ### P3.1: Stdout Redirection
-Pane A's stdout SHALL be redirected to `A_to_B` FIFO.
+`from` pane's stdout SHALL be redirected to the FIFO.
 
-### P3.2: Stdin Redirection  
-Pane A's stdin SHALL be redirected from `B_to_A` FIFO.
+### P3.2: Stdin Redirection
+`to` pane's stdin SHALL be redirected from the FIFO.
 
-### P3.3: Symmetry
-Connection SHALL be symmetric: A→B and B→A.
+### P3.3: Ownership
+`from` owns write end. `to` owns read end. Like Rust ownership.
 
 ---
 
