@@ -240,7 +240,9 @@ describe('Explicit Namespacing / Shared-Identity Composition Executable Spec v0'
       expect(result.conflicts.some(c => c.type === 'UndeclaredSharedIdentity')).toBe(true);
     });
 
-    test('shared subject identity with exact declaration succeeds', () => {
+    test('shared subject identity fails kernel well-formedness', () => {
+      // KERNEL ALIGNMENT: Shared identities produce duplicate subject identities,
+      // which violates kernel law K2 (DuplicateSubjectIdentity).
       const modA = createModule('mod-a', `
         workspace "ws-a" {
           context { "k" "v" }
@@ -281,7 +283,9 @@ describe('Explicit Namespacing / Shared-Identity Composition Executable Spec v0'
       };
 
       const result = composeExplicit([modA, modB], policy);
-      expect(result.admissible).toBe(true);
+      // Kernel-aligned: shared identities produce invalid workspace
+      expect(result.admissible).toBe(false);
+      expect(result.conflicts.some(c => c.type === 'KernelWellFormednessFailure')).toBe(true);
     });
 
     test('invalid shared identity declaration fails', () => {

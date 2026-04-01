@@ -1,8 +1,10 @@
 /**
- * Conservative Composition
+ * Conservative Composition (Kernel-Aligned)
  * 
  * Implements composition laws C1-C5 from lawbook 030.
  * Deterministic, collision-failing composition of workspace modules.
+ * 
+ * KERNEL ALIGNMENT: Composed workspace validated against kernel well-formedness.
  */
 
 import type { Workspace, RoleBlock, RelationBlock, ContextEntry } from "../types/ast.js";
@@ -12,6 +14,8 @@ import type {
   CompositionConflict,
   ConflictType,
 } from "../types/composition.js";
+import { wellFormed } from "../kernel/kernel.js";
+import { toKernelWorkspace } from "../kernel/ast-to-kernel.js";
 
 function createConflict(
   type: ConflictType,
@@ -30,6 +34,8 @@ function createConflict(
  * Law C3: Agreement rules
  * Law C4: Relation resolution
  * Law C5: Success shape
+ * 
+ * KERNEL ALIGNMENT: Successful composition validated by kernel.wellFormed
  */
 export function compose(modules: Module[]): CompositionVerdict {
   const conflicts: CompositionConflict[] = [];
@@ -48,7 +54,19 @@ export function compose(modules: Module[]): CompositionVerdict {
   }
 
   if (sortedModules.length === 1) {
-    // Single module is trivially composed
+    // Single module - still validate against kernel
+    const kernelWs = toKernelWorkspace(sortedModules[0].workspace);
+    const kernelVerdict = wellFormed(kernelWs);
+    if (!kernelVerdict.ok) {
+      return {
+        admissible: false,
+        conflicts: kernelVerdict.errors.map(e => ({
+          type: "KernelWellFormednessFailure" as ConflictType,
+          message: `Kernel well-formedness: ${e.type}`,
+          details: { kernelError: e },
+        })),
+      };
+    }
     return {
       composed: sortedModules[0].workspace,
       admissible: true,
@@ -289,9 +307,24 @@ export function compose(modules: Module[]): CompositionVerdict {
     ],
   };
 
+  // KERNEL ALIGNMENT: Validate composed workspace against kernel
+  const kernelWs = toKernelWorkspace(composed);
+  const kernelVerdict = wellFormed(kernelWs);
+  if (!kernelVerdict.ok) {
+    return {
+      admissible: false,
+      conflicts: kernelVerdict.errors.map(e => ({
+        type: "KernelWellFormednessFailure" as ConflictType,
+        message: `Kernel well-formedness: ${e.type}`,
+        details: { kernelError: e },
+      })),
+    };
+  }
+
   notes.push(`Composed ${sortedModules.length} modules into "${composedId}"`);
   notes.push(`Total roles: ${composedRoles.length}`);
   notes.push(`Total relations: ${allRelations.length}`);
+  notes.push(`Kernel well-formed: true`);
 
   return {
     composed,

@@ -19,10 +19,12 @@ function createViolation(
 /**
  * Directory classification rules.
  * Law D1: Authority classification
+ * KERNEL ALIGNMENT: Kernel source is explicitly authoritative
  */
 const DIRECTORY_RULES: Record<string, { authority: string; rule: string }> = {
   "/policy/src": { authority: "authoritative", rule: "must-not-be-generated" },
   "/policy/spec": { authority: "authoritative", rule: "must-not-be-generated" },
+  "/src/kernel": { authority: "authoritative", rule: "must-not-be-generated" },
   "/policy/generated": { authority: "non-authoritative", rule: "must-be-reproducible" },
   "/policy/dist": { authority: "non-authoritative", rule: "must-be-reproducible" },
   "/policy/state": { authority: "non-authoritative", rule: "runtime-only" },
@@ -81,8 +83,8 @@ export function validateRepo(
     }
 
     if (op.type === "write") {
-      // D1.2: Check for illegal writes to source
-      if (isUnder(op.path, "/policy/src") || isUnder(op.path, "/policy/spec")) {
+      // D1.2: Check for illegal writes to source (includes kernel)
+      if (isUnder(op.path, "/policy/src") || isUnder(op.path, "/policy/spec") || isUnder(op.path, "/src/kernel")) {
         violations.push(
           createViolation(
             "IllegalWriteToSource",
@@ -184,8 +186,8 @@ export function validateStageOperation(
         );
       }
 
-      // D1.2: Never allow writes to source
-      if (isUnder(op.path, "/policy/src") || isUnder(op.path, "/policy/spec")) {
+      // D1.2: Never allow writes to source (includes kernel)
+      if (isUnder(op.path, "/policy/src") || isUnder(op.path, "/policy/spec") || isUnder(op.path, "/src/kernel")) {
         violations.push(
           createViolation(
             "IllegalWriteToSource",

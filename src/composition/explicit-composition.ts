@@ -1,8 +1,10 @@
 /**
- * Explicit Composition
+ * Explicit Composition (Kernel-Aligned)
  * 
  * Implements composition laws E1-E5 from lawbook 036.
  * Controlled relaxation through explicit declarations.
+ * 
+ * KERNEL ALIGNMENT: Composed workspace validated against kernel well-formedness.
  */
 
 import type { Workspace, RoleBlock, RelationBlock, ContextEntry } from "../types/ast.js";
@@ -12,6 +14,8 @@ import type {
   ExplicitCompositionVerdict,
   RoleAliasDecl,
 } from "../types/explicit-composition.js";
+import { wellFormed } from "../kernel/kernel.js";
+import { toKernelWorkspace } from "../kernel/ast-to-kernel.js";
 
 function createConflict(
   type: string,
@@ -56,6 +60,8 @@ function computeLiftedRoleId(
  * Law E3: Shared-identity laws
  * Law E4: Relation resolution laws
  * Law E5: Strictness preservation
+ * 
+ * KERNEL ALIGNMENT: Successful composition validated by kernel.wellFormed
  */
 export function composeExplicit(
   modules: Module[],
@@ -367,9 +373,25 @@ export function composeExplicit(
     ],
   };
 
+  // KERNEL ALIGNMENT: Validate composed workspace against kernel
+  const kernelWs = toKernelWorkspace(composed);
+  const kernelVerdict = wellFormed(kernelWs);
+  if (!kernelVerdict.ok) {
+    return {
+      admissible: false,
+      conflicts: kernelVerdict.errors.map(e => ({
+        type: "KernelWellFormednessFailure",
+        message: `Kernel well-formedness: ${e.type}`,
+        details: { kernelError: e },
+      })),
+      liftingMap,
+    };
+  }
+
   notes.push(`Explicit composition of ${sortedModules.length} modules`);
   notes.push(`Total lifted roles: ${composedRoles.length}`);
   notes.push(`Total relations: ${composedRelations.length}`);
+  notes.push(`Kernel well-formed: true`);
 
   return {
     composed,
