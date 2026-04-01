@@ -143,12 +143,14 @@ export async function executeWtCommand(
   args: string[]
 ): Promise<ExecutionResult> {
   return new Promise((resolve) => {
-    // WT runs in Windows, use shell to handle semicolon separators
-    // The semicolons are WT syntax, not shell syntax, so we need to escape them properly
-    const child = spawn(wtPath, args, {
+    // On Windows, we need to build a proper command line string
+    // because Windows doesn't have argv array - it parses a single command line
+    const cmdLine = buildWindowsCommandLine(wtPath, args);
+    
+    const child = spawn(cmdLine, [], {
       stdio: ["ignore", "ignore", "ignore"],
       windowsHide: false,
-      shell: false, // Don't use shell - pass args directly
+      shell: true, // Use shell to properly handle the command line
     });
 
     // WT detaches immediately, consider success if spawn works
@@ -176,6 +178,24 @@ export async function executeWtCommand(
       });
     });
   });
+}
+
+/**
+ * Build a Windows command line string from args.
+ * Properly quotes arguments that contain spaces or special characters.
+ */
+function buildWindowsCommandLine(exe: string, args: string[]): string {
+  const quote = (arg: string): string => {
+    // If arg contains spaces, quotes, or semicolons, wrap in quotes
+    if (/[\s";]/.test(arg)) {
+      // Escape existing quotes by doubling them
+      const escaped = arg.replace(/"/g, '""');
+      return `"${escaped}"`;
+    }
+    return arg;
+  };
+  
+  return [exe, ...args].map(quote).join(" ");
 }
 
 /**
