@@ -7,7 +7,9 @@
 
 import { spawn, exec } from "child_process";
 import { promisify } from "util";
+import { rm } from "fs/promises";
 import type { TmuxShellCommand } from "./tmux-command-builder.js";
+import type { WtShellCommand } from "./wt-pane-builder.js";
 
 const execAsync = promisify(exec);
 
@@ -137,15 +139,13 @@ export async function executeTmuxSequence(
  * Execute Windows Terminal command.
  * 
  * Law W3: Fire and forget execution.
+ * Cleans up temp files after launching.
  */
-export async function executeWtCommand(
-  wtPath: string,
-  args: string[]
-): Promise<ExecutionResult> {
+export async function executeWtCommand(cmd: WtShellCommand): Promise<ExecutionResult> {
   return new Promise((resolve) => {
     // On Windows, we need to build a proper command line string
     // because Windows doesn't have argv array - it parses a single command line
-    const cmdLine = buildWindowsCommandLine(wtPath, args);
+    const cmdLine = buildWindowsCommandLine(cmd.exePath, cmd.args);
     
     const child = spawn(cmdLine, [], {
       stdio: ["ignore", "ignore", "ignore"],
@@ -155,6 +155,11 @@ export async function executeWtCommand(
 
     // WT detaches immediately, consider success if spawn works
     child.on("spawn", () => {
+      // Clean up temp files after a short delay (scripts need time to start)
+      setTimeout(() => {
+        cleanupTempFiles(cmd.tempFiles);
+      }, 5000);
+      
       resolve({
         success: true,
         exitCode: 0,
@@ -164,9 +169,12 @@ export async function executeWtCommand(
     });
 
     child.on("error", (error) => {
+      // Clean up temp files on error too
+      cleanupTempFiles(cmd.tempFiles);
+      
       // Common error: wt.exe not found
       const errorMsg = error.message.includes("ENOENT")
-        ? `Windows Terminal not found at '${wtPath}'. Is it installed and in PATH?`
+        ? `Windows Terminal not found at '${cmd.exePath}'. Is it installed and in PATH?`
         : error.message;
       
       resolve({
@@ -178,6 +186,19 @@ export async function executeWtCommand(
       });
     });
   });
+}
+
+/**
+ * Clean up temporary script files.
+ */
+async function cleanupTempFiles(files: string[]): Promise<void> {
+  for (const file of files) {
+    try {
+      await rm(file, { force: true });
+    } catch {
+      // Ignore cleanup errors
+    }
+  }
 }
 
 /**

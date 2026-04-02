@@ -3,8 +3,13 @@
  * 
  * Implements lawbook 064C.
  * Converts TabbedModule with panes into wt.exe split-pane commands.
+ * 
+ * Uses temp file approach to avoid complex bash quoting issues.
  */
 
+import { writeFileSync, mkdirSync } from "fs";
+import { tmpdir } from "os";
+import { join } from "path";
 import type { TabbedModule, TabBlock, PaneBlock, LayoutKind } from "../types/tabs.js";
 
 /**
@@ -15,26 +20,35 @@ export type WtShellCommand = {
   exePath: string;
   args: string[];
   description: string;
+  tempFiles: string[]; // Track temp files for cleanup
 };
 
 /**
  * Build Windows Terminal command from tabbed module.
+ * Creates temp script files to avoid bash escaping issues.
  */
 export function buildWtPaneCommand(
   module: TabbedModule,
   options: {
     wtPath?: string;
     wslDistro?: string;
+    wtProfile?: string;
     workingDir?: string;
   } = {}
 ): WtShellCommand {
   const {
     wtPath = "wt.exe",
-    wslDistro = "Ubuntu 24.04.1 LTS",  // Use exact profile name
+    wslDistro = "Ubuntu-24.04",
+    wtProfile = "Ubuntu 24.04.1 LTS",
     workingDir = process.cwd(),
   } = options;
 
-  const args: string[] = ["-w", "0"];  // -w 0 = current window
+  // Create temp directory for scripts
+  const tempDir = join(tmpdir(), `themis_${Date.now()}`);
+  mkdirSync(tempDir, { recursive: true });
+
+  const tempFiles: string[] = [];
+  const args: string[] = ["-w", "0"]; // -w 0 = current window
   let firstTab = true;
 
   for (const tab of module.workspace.tabs) {
@@ -43,8 +57,15 @@ export function buildWtPaneCommand(
     }
     firstTab = false;
 
-    const tabArgs = buildTabArgs(tab, wslDistro, workingDir);
+    const { args: tabArgs, tempFiles: tabTempFiles } = buildTabArgs(
+      tab,
+      wslDistro,
+      wtProfile,
+      workingDir,
+      tempDir
+    );
     args.push(...tabArgs);
+    tempFiles.push(...tabTempFiles);
   }
 
   return {
@@ -52,14 +73,23 @@ export function buildWtPaneCommand(
     exePath: wtPath,
     args,
     description: `Launch Windows Terminal with ${module.workspace.tabs.length} tab(s)`,
+    tempFiles,
   };
 }
 
 /**
  * Build arguments for a tab with panes.
+ * Returns args and list of temp files created.
  */
-function buildTabArgs(tab: TabBlock, wslDistro: string, workingDir: string): string[] {
+function buildTabArgs(
+  tab: TabBlock,
+  wslDistro: string,
+  wtProfile: string,
+  workingDir: string,
+  tempDir: string
+): { args: string[]; tempFiles: string[] } {
   const args: string[] = [];
+  const tempFiles: string[] = [];
   const panes = tab.panes;
 
   if (panes.length === 0) {
@@ -69,12 +99,15 @@ function buildTabArgs(tab: TabBlock, wslDistro: string, workingDir: string): str
   // First pane: new-tab
   args.push("new-tab");
   args.push("--title", tab.name);
-  args.push("--profile", wslDistro);
+  args.push("--profile", wtProfile);
 
   // First pane command
   if (panes[0]?.command) {
-    const cmd = wrapCmd(panes[0].command, workingDir);
-    args.push("--", "wsl.exe", "-d", wslDistro, "bash", "-c", cmd);
+    const scriptPath = writeTempScript(tempDir, panes[0].command, workingDir, 0);
+    tempFiles.push(scriptPath);
+    // Reference script via WSL path
+    const wslScriptPath = toWslPath(scriptPath);
+    args.push("--", "wsl.exe", "-d", wslDistro, "bash", wslScriptPath);
   }
 
   // Subsequent panes: split-pane
@@ -85,28 +118,50 @@ function buildTabArgs(tab: TabBlock, wslDistro: string, workingDir: string): str
 
     args.push(";");
     args.push("split-pane", splitFlag);
-    args.push("--profile", wslDistro);
+    args.push("--profile", wtProfile);
 
     if (pane.command) {
-      const cmd = wrapCmd(pane.command, workingDir);
-      args.push("--", "wsl.exe", "-d", wslDistro, "bash", "-c", cmd);
+      const scriptPath = writeTempScript(tempDir, pane.command, workingDir, i);
+      tempFiles.push(scriptPath);
+      const wslScriptPath = toWslPath(scriptPath);
+      args.push("--", "wsl.exe", "-d", wslDistro, "bash", wslScriptPath);
     }
   }
 
-  return args;
+  return { args, tempFiles };
 }
 
 /**
- * Wrap command with cd to working directory.
- * Properly escapes single quotes for bash -c.
+ * Write command to a temp script file.
  */
-function wrapCmd(cmd: string, workingDir: string): string {
-  // Escape single quotes: ' -> '\''
-  // This ends the single quote, adds an escaped quote, then restarts
-  const escapedCmd = cmd.replace(/'/g, "'\\''");
-  const escapedDir = workingDir.replace(/'/g, "'\\''");
-  
-  return `cd '${escapedDir}' && ${escapedCmd}`;
+function writeTempScript(tempDir: string, command: string, workingDir: string, index: number): string {
+  const scriptPath = join(tempDir, `pane_${index}.sh`);
+  const scriptContent = `#!/bin/bash
+# Themis pane script - auto-generated
+cd '${workingDir.replace(/'/g, "'\\''")}'
+${command}
+`;
+  writeFileSync(scriptPath, scriptContent, { mode: 0o755 });
+  return scriptPath;
+}
+
+/**
+ * Convert Windows path to WSL path.
+ * E.g., C:\Users\... -> /mnt/c/Users/...
+ */
+function toWslPath(windowsPath: string): string {
+  // Handle /tmp/... paths (already WSL-style if on Linux/Mac)
+  if (windowsPath.startsWith("/tmp/") || windowsPath.startsWith("/home/")) {
+    return windowsPath;
+  }
+  // Convert C:\... to /mnt/c/...
+  const match = windowsPath.match(/^([A-Za-z]):\\(.*)$/);
+  if (match) {
+    const drive = match[1].toLowerCase();
+    const path = match[2].replace(/\\/g, "/");
+    return `/mnt/${drive}/${path}`;
+  }
+  return windowsPath;
 }
 
 /**

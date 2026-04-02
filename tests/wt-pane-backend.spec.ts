@@ -127,21 +127,20 @@ describe("Windows Terminal Pane Backend (W1-W5)", () => {
   });
 
   describe("W4: Command Association", () => {
-    it("includes wrapped command in first pane", () => {
+    it("creates temp script file for first pane", () => {
       const module = createTestModule();
       const cmd = buildWtPaneCommand(module);
 
-      // Command is wrapped with cd
-      const hasCmd = cmd.args.some(arg => arg.includes("vim"));
-      expect(hasCmd).toBe(true);
+      // Command is now in temp file, not inline
+      expect(cmd.tempFiles.length).toBeGreaterThan(0);
+      expect(cmd.tempFiles[0]).toMatch(/pane_0\.sh$/);
     });
 
-    it("includes wrapped command in split pane", () => {
+    it("creates temp script files for all panes", () => {
       const module = createTestModule();
       const cmd = buildWtPaneCommand(module);
 
-      const hasCmd = cmd.args.some(arg => arg.includes("bash"));
-      expect(hasCmd).toBe(true);
+      expect(cmd.tempFiles.length).toBe(module.workspace.tabs[0].panes.length);
     });
   });
 

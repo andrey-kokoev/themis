@@ -147,7 +147,7 @@ describe("Windows Terminal Backend (W1-W5)", () => {
   });
 
   describe("W3: Command Association", () => {
-    it("includes wrapped command in first pane", () => {
+    it("creates temp script file with command", () => {
       const module: TabbedModule = {
         tag: "TabbedModule",
         moduleId: "test",
@@ -168,8 +168,11 @@ describe("Windows Terminal Backend (W1-W5)", () => {
       };
 
       const cmd = buildWtPaneCommand(module);
-      const hasCmd = cmd.args.some(arg => arg.includes("vim"));
-      expect(hasCmd).toBe(true);
+      // Commands are now in temp files, not inline
+      expect(cmd.tempFiles.length).toBe(1);
+      expect(cmd.tempFiles[0]).toMatch(/pane_0\.sh$/);
+      // Args should reference the script via WSL path
+      expect(cmd.args.some(arg => arg.includes("pane_0.sh"))).toBe(true);
     });
   });
 
@@ -184,6 +187,133 @@ describe("Windows Terminal Backend (W1-W5)", () => {
 
       const formatted = formatWtCommand(cmd);
       expect(formatted).toBe("wt.exe new-tab --title test");
+    });
+  });
+
+  describe("W6: Profile and Distro Names", () => {
+    it("uses wtProfile for --profile and wslDistro for -d", () => {
+      const module: TabbedModule = {
+        tag: "TabbedModule",
+        moduleId: "test",
+        imports: [],
+        workspace: {
+          tag: "TabWorkspace",
+      pipes: [],
+          name: "main",
+          tabs: [{
+            tag: "TabBlock",
+            name: "main",
+            target: "local",
+            layout: "horizontal",
+            panes: [{ tag: "PaneBlock", command: "bash" }],
+          }],
+          pipes: [],
+        },
+      };
+
+      const cmd = buildWtPaneCommand(module, {
+        wtProfile: "Ubuntu 24.04.1 LTS",
+        wslDistro: "Ubuntu-24.04",
+      });
+
+      // Check that --profile uses the WT profile name
+      const profileIdx = cmd.args.indexOf("--profile");
+      expect(profileIdx).toBeGreaterThan(-1);
+      expect(cmd.args[profileIdx + 1]).toBe("Ubuntu 24.04.1 LTS");
+
+      // Check that -d uses the WSL distro name
+      const distroIdx = cmd.args.indexOf("-d");
+      expect(distroIdx).toBeGreaterThan(-1);
+      expect(cmd.args[distroIdx + 1]).toBe("Ubuntu-24.04");
+    });
+
+    it("uses defaults when options not provided", () => {
+      const module: TabbedModule = {
+        tag: "TabbedModule",
+        moduleId: "test",
+        imports: [],
+        workspace: {
+          tag: "TabWorkspace",
+      pipes: [],
+          name: "main",
+          tabs: [{
+            tag: "TabBlock",
+            name: "main",
+            target: "local",
+            layout: "horizontal",
+            panes: [{ tag: "PaneBlock", command: "bash" }],
+          }],
+          pipes: [],
+        },
+      };
+
+      const cmd = buildWtPaneCommand(module);
+
+      // Default profile: "Ubuntu 24.04.1 LTS"
+      const profileIdx = cmd.args.indexOf("--profile");
+      expect(cmd.args[profileIdx + 1]).toBe("Ubuntu 24.04.1 LTS");
+
+      // Default distro: "Ubuntu-24.04"
+      const distroIdx = cmd.args.indexOf("-d");
+      expect(cmd.args[distroIdx + 1]).toBe("Ubuntu-24.04");
+    });
+  });
+
+  describe("W7: Semicolon Safety", () => {
+    it("uses temp files to avoid semicolon interpretation issues", () => {
+      const module: TabbedModule = {
+        tag: "TabbedModule",
+        moduleId: "test",
+        imports: [],
+        workspace: {
+          tag: "TabWorkspace",
+      pipes: [],
+          name: "main",
+          tabs: [{
+            tag: "TabBlock",
+            name: "main",
+            target: "local",
+            layout: "horizontal",
+            panes: [{ tag: "PaneBlock", command: "echo Hello; sleep 10" }],
+          }],
+          pipes: [],
+        },
+      };
+
+      const cmd = buildWtPaneCommand(module);
+      
+      // With temp file approach, semicolons are in the script file
+      // WT only sees the script path, not the content with semicolons
+      expect(cmd.tempFiles.length).toBe(1);
+      // Args should NOT contain semicolons (they're in the file)
+      const argsStr = cmd.args.join(" ");
+      expect(argsStr).not.toContain(";");
+    });
+
+    it("handles multiple semicolons via temp files", () => {
+      const module: TabbedModule = {
+        tag: "TabbedModule",
+        moduleId: "test",
+        imports: [],
+        workspace: {
+          tag: "TabWorkspace",
+      pipes: [],
+          name: "main",
+          tabs: [{
+            tag: "TabBlock",
+            name: "main",
+            target: "local",
+            layout: "horizontal",
+            panes: [{ tag: "PaneBlock", command: "a;b;c" }],
+          }],
+          pipes: [],
+        },
+      };
+
+      const cmd = buildWtPaneCommand(module);
+      expect(cmd.tempFiles.length).toBe(1);
+      const argsStr = cmd.args.join(" ");
+      expect(argsStr).not.toContain(";");
     });
   });
 });

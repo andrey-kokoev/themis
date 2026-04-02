@@ -238,10 +238,17 @@ async function runWt(
   opts: CliOptions & { file: string }
 ): Promise<number> {
   const workingDir = dirname(opts.file);
-  const cmd = buildWtPaneCommand(module, { workingDir });
+  const cmd = buildWtPaneCommand(module, {
+    workingDir,
+    wslDistro: "Ubuntu-24.04",
+    wtProfile: "Ubuntu 24.04.1 LTS",
+  });
 
   if (opts.verbose || opts.command === "dry-run") {
     console.log(`\nCommand: ${formatWtCommand(cmd)}`);
+    if (cmd.tempFiles.length > 0) {
+      console.log(`Temp scripts: ${cmd.tempFiles.join(", ")}`);
+    }
   }
 
   if (opts.command === "dry-run") {
@@ -250,7 +257,7 @@ async function runWt(
   }
 
   const { executeWtCommand } = await import("./backend/executor.js");
-  const result = await executeWtCommand(cmd.exePath, cmd.args);
+  const result = await executeWtCommand(cmd);
 
   if (!result.success) {
     console.error(`Error: ${result.stderr}`);
